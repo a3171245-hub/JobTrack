@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "push": "git add . && git commit -m 'auto update' && git push origin main",
+    "watch:push": "bash scripts/watch-and-push.sh"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
