@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
-import { analyzeEmail } from '@/lib/openai'
+import { analyzeEmail } from '@/lib/gemini'
 import type { ApplicationStatus } from '@/types/database'
 
 export const maxDuration = 60

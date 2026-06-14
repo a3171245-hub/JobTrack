@@ -14,7 +14,7 @@ const EMAIL_TYPE_LABELS: Record<string, string> = {
 }
 
 const EMAIL_TYPE_COLORS: Record<string, string> = {
-  selection: 'bg-blue-50 text-blue-700 border-blue-200',
+  selection: 'bg-indigo-50 text-indigo-700 border-indigo-200',
   event: 'bg-yellow-50 text-yellow-700 border-yellow-200',
   other: 'bg-slate-50 text-slate-600 border-slate-200',
   manual_update: 'bg-slate-50 text-slate-500 border-slate-200',

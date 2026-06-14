@@ -63,6 +63,7 @@ export default function AddApplicationDialog() {
         test_date: null,
         test_result: null,
         notes: notes || null,
+        memo: null,
         es_deadline: null,
         custom_flow: null,
         gd_date: null,
@@ -87,7 +88,11 @@ export default function AddApplicationDialog() {
 
   return (
     <>
-      <Button onClick={() => setOpen(true)} size="sm" className="gap-1.5">
+      <Button
+        onClick={() => setOpen(true)}
+        size="sm"
+        className="gap-1.5 h-9 px-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-sm shadow-indigo-600/20"
+      >
         <Plus className="w-4 h-4" />
         企業を追加
       </Button>
@@ -149,7 +154,7 @@ export default function AddApplicationDialog() {
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-slate-700 whitespace-pre-line">
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs text-slate-700 whitespace-pre-line">
                     {notes}
                   </div>
                 </div>

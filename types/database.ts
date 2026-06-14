@@ -59,6 +59,7 @@ export interface Database {
           test_date: string | null
           test_result: TestResult | null
           notes: string | null
+          memo: string | null
           es_deadline: string | null
           custom_flow: Json | null
           gd_date: string | null
@@ -77,6 +78,7 @@ export interface Database {
           test_date?: string | null
           test_result?: TestResult | null
           notes?: string | null
+          memo?: string | null
           es_deadline?: string | null
           custom_flow?: Json | null
           gd_date?: string | null
@@ -95,6 +97,7 @@ export interface Database {
           test_date?: string | null
           test_result?: TestResult | null
           notes?: string | null
+          memo?: string | null
           es_deadline?: string | null
           custom_flow?: Json | null
           gd_date?: string | null

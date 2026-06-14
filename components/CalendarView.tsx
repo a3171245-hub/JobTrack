@@ -19,6 +19,17 @@ import { ja } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Search, X, Plus, Trash2, Building2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import Link from 'next/link'
+import {
+  DndContext,
+  useDraggable,
+  useDroppable,
+  DragOverlay,
+  type DragEndEvent,
+  type DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
 
 interface CalendarApp {
   id: string
@@ -57,8 +68,8 @@ const MANUAL_EVENTS_KEY = 'jobtrack_calendar_events'
 const EVENT_CONFIG: Record<EventType, { label: string; chipClass: string; iconClass: string }> = {
   interview: {
     label: '面接',
-    chipClass: 'bg-blue-100 text-blue-800 border-blue-200',
-    iconClass: 'text-blue-600',
+    chipClass: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+    iconClass: 'text-indigo-600',
   },
   event: {
     label: 'イベント',
@@ -97,10 +108,6 @@ const FILTER_OPTIONS: { value: FilterOption; label: string }[] = [
 ]
 
 const DOW = ['日', '月', '火', '水', '木', '金', '土']
-
-function shortName(name: string) {
-  return name.replace(/株式会社|合同会社|有限会社/g, '').trim()
-}
 
 function loadManualEvents(): ManualEvent[] {
   if (typeof window === 'undefined') return []
@@ -165,7 +172,7 @@ function AddEventModal({
               placeholder="予定名を入力..."
               required
               autoFocus
-              className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
             />
           </div>
           <div>
@@ -175,7 +182,7 @@ function AddEventModal({
               value={date}
               onChange={(e) => setDate(e.target.value)}
               required
-              className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
             />
           </div>
           <div>
@@ -183,7 +190,7 @@ function AddEventModal({
             <select
               value={type}
               onChange={(e) => setType(e.target.value as ManualEvent['type'])}
-              className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white"
+              className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 bg-white"
             >
               <option value="interview">面接</option>
               <option value="gd">GD</option>
@@ -202,7 +209,7 @@ function AddEventModal({
               onChange={(e) => setMemo(e.target.value)}
               placeholder="補足情報..."
               rows={3}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm resize-none focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm resize-none focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
             />
           </div>
           <div className="flex gap-2 pt-1">
@@ -215,7 +222,7 @@ function AddEventModal({
             </button>
             <button
               type="submit"
-              className="flex-1 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-sm text-white font-medium transition-colors"
+              className="flex-1 h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-sm text-white font-medium transition-colors"
             >
               追加
             </button>
@@ -276,6 +283,64 @@ function EventDetailModal({
   )
 }
 
+// ── DnD Sub-components ──────────────────────────────────────
+function DraggableChip({
+  event,
+  onEventClick,
+}: {
+  event: DayEvent
+  onEventClick: (ev: DayEvent) => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: event.id })
+  const cfg = EVENT_CONFIG[event.type]
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      onClick={(e) => { e.stopPropagation(); onEventClick(event) }}
+      style={transform ? { transform: `translate3d(${transform.x}px,${transform.y}px,0)` } : undefined}
+      className={[
+        'flex items-start gap-1 text-xs px-1.5 py-1 rounded-md border leading-tight cursor-grab active:cursor-grabbing select-none',
+        cfg.chipClass,
+        isDragging ? 'opacity-30' : 'hover:opacity-80 transition-opacity',
+      ].join(' ')}
+      title={`${event.title}（${cfg.label}）`}
+    >
+      <span className="mt-1 w-1.5 h-1.5 rounded-full bg-current opacity-60 flex-shrink-0" />
+      <span className="break-words">{event.title}</span>
+    </div>
+  )
+}
+
+function DroppableDay({
+  date,
+  children,
+  className,
+  onClick,
+}: {
+  date: Date
+  children: React.ReactNode
+  className: string
+  onClick: () => void
+}) {
+  const { isOver, setNodeRef } = useDroppable({ id: format(date, 'yyyy-MM-dd') })
+
+  return (
+    <div
+      ref={setNodeRef}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
+      className={`${className} ${isOver ? 'bg-indigo-100/50 ring-2 ring-indigo-300 ring-inset' : ''}`}
+    >
+      {children}
+    </div>
+  )
+}
+
 // ── Main Component ───────────────────────────────────────────
 export default function CalendarView({ applications }: { applications: CalendarApp[] }) {
   const [currentMonth, setCurrentMonth] = useState<Date | null>(null)
@@ -285,13 +350,45 @@ export default function CalendarView({ applications }: { applications: CalendarA
   const [manualEvents, setManualEvents] = useState<ManualEvent[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
   const [detailEvent, setDetailEvent] = useState<DayEvent | null>(null)
+  const [draggingEvent, setDraggingEvent] = useState<DayEvent | null>(null)
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   useEffect(() => {
+    // SSR/CSR の時刻差・localStorage 参照のためマウント後に初期化する
     const now = new Date()
+    /* eslint-disable react-hooks/set-state-in-effect */
     setCurrentMonth(startOfMonth(now))
     setSelectedDay(now)
     setManualEvents(loadManualEvents())
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [])
+
+  function handleDragStart(event: DragStartEvent) {
+    const found = manualEvents.find((e) => e.id === event.active.id)
+    if (!found) return
+    const dayEv: DayEvent = {
+      id: found.id,
+      title: found.title,
+      type: found.type,
+      date: parseISO(found.date),
+      is_manual: true,
+      memo: found.memo,
+    }
+    setDraggingEvent(dayEv)
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    setDraggingEvent(null)
+    const { active, over } = event
+    if (!over) return
+    const newDateStr = over.id as string
+    const updated = manualEvents.map((e) =>
+      e.id === active.id ? { ...e, date: newDateStr } : e
+    )
+    setManualEvents(updated)
+    saveManualEvents(updated)
+  }
 
   if (!currentMonth) {
     return (
@@ -465,7 +562,7 @@ export default function CalendarView({ applications }: { applications: CalendarA
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="企業名で検索..."
-            className="w-full h-10 pl-9 pr-8 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-colors"
+            className="w-full h-10 pl-9 pr-8 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-colors"
           />
           {searchQuery && (
             <button
@@ -504,7 +601,7 @@ export default function CalendarView({ applications }: { applications: CalendarA
         {/* 予定追加ボタン */}
         <button
           onClick={() => setShowAddModal(true)}
-          className="h-9 px-3.5 rounded-xl text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1.5 transition-colors flex-shrink-0"
+          className="h-9 px-3.5 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 transition-colors flex-shrink-0"
         >
           <Plus className="w-4 h-4" />
           予定を追加
@@ -512,104 +609,119 @@ export default function CalendarView({ applications }: { applications: CalendarA
       </div>
 
       {/* カレンダーグリッド */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        {/* 曜日ヘッダー */}
-        <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-200">
-          {DOW.map((d, i) => (
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          {/* 曜日ヘッダー */}
+          <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-200">
+            {DOW.map((d, i) => (
+              <div
+                key={d}
+                className={`py-3 text-center text-sm font-semibold select-none ${
+                  i === 0 ? 'text-red-500' : i === 6 ? 'text-indigo-600' : 'text-slate-500'
+                }`}
+              >
+                {d}
+              </div>
+            ))}
+          </div>
+
+          {/* 週行 */}
+          {weeks.map((week, wi) => (
             <div
-              key={d}
-              className={`py-3 text-center text-sm font-semibold select-none ${
-                i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-600' : 'text-slate-500'
-              }`}
+              key={wi}
+              className={`grid grid-cols-7 ${wi < weeks.length - 1 ? 'border-b border-slate-100' : ''}`}
             >
-              {d}
+              {week.map((d, di) => {
+                const inMonth = isSameMonth(d, currentMonth)
+                const isSelected = selectedDay ? isSameDay(d, selectedDay) : false
+                const isCurrentDay = isToday(d)
+                const dayEvents = visibleEvents.filter((e) => isSameDay(e.date, d))
+                const isSun = di === 0
+                const isSat = di === 6
+
+                const numberClass = isSelected
+                  ? 'bg-indigo-600 text-white font-bold shadow-sm'
+                  : isCurrentDay
+                  ? 'bg-indigo-100 text-indigo-700 font-bold ring-1 ring-indigo-200'
+                  : !inMonth
+                  ? 'text-slate-300'
+                  : isSun
+                  ? 'text-rose-500 font-medium'
+                  : isSat
+                  ? 'text-indigo-600 font-medium'
+                  : 'text-slate-700 font-medium'
+
+                return (
+                  <DroppableDay
+                    key={d.toISOString()}
+                    date={d}
+                    onClick={() => setSelectedDay(d)}
+                    className={[
+                      'min-h-[104px] p-2 text-left border-l border-slate-100 first:border-l-0 transition-colors select-none cursor-pointer',
+                      isCurrentDay
+                        ? 'bg-indigo-50/40 hover:bg-indigo-50/70'
+                        : inMonth
+                        ? 'hover:bg-slate-50/80'
+                        : 'bg-slate-50/40',
+                    ].join(' ')}
+                  >
+                    <div className="mb-1.5">
+                      <span
+                        className={`inline-flex w-7 h-7 items-center justify-center rounded-full text-sm transition-colors ${numberClass}`}
+                      >
+                        {format(d, 'd')}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      {dayEvents.slice(0, 3).map((ev) => {
+                        const cfg = EVENT_CONFIG[ev.type]
+                        if (ev.is_manual) {
+                          return (
+                            <DraggableChip
+                              key={ev.id}
+                              event={ev}
+                              onEventClick={setDetailEvent}
+                            />
+                          )
+                        }
+                        return (
+                          <Link
+                            key={ev.id}
+                            href={`/dashboard/company/${ev.application_id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className={`flex items-start gap-1 text-xs px-1.5 py-1 rounded-md border leading-tight ${cfg.chipClass} hover:opacity-80 transition-opacity`}
+                            title={`${ev.title}（${cfg.label}）`}
+                          >
+                            <span className="mt-1 w-1.5 h-1.5 rounded-full bg-current opacity-60 flex-shrink-0" />
+                            <span className="break-words">{ev.title}</span>
+                          </Link>
+                        )
+                      })}
+                      {dayEvents.length > 3 && (
+                        <p className="text-xs text-slate-400 pl-1.5">
+                          他{dayEvents.length - 3}件
+                        </p>
+                      )}
+                    </div>
+                  </DroppableDay>
+                )
+              })}
             </div>
           ))}
         </div>
 
-        {/* 週行 */}
-        {weeks.map((week, wi) => (
-          <div
-            key={wi}
-            className={`grid grid-cols-7 ${wi < weeks.length - 1 ? 'border-b border-slate-100' : ''}`}
-          >
-            {week.map((d, di) => {
-              const inMonth = isSameMonth(d, currentMonth)
-              const isSelected = selectedDay ? isSameDay(d, selectedDay) : false
-              const isCurrentDay = isToday(d)
-              const dayEvents = visibleEvents.filter((e) => isSameDay(e.date, d))
-              const isSun = di === 0
-              const isSat = di === 6
-
-              const numberClass = isSelected
-                ? 'bg-blue-500 text-white font-bold'
-                : isCurrentDay
-                ? 'bg-gray-100 text-gray-900 font-medium'
-                : !inMonth
-                ? 'text-slate-300'
-                : isSun
-                ? 'text-red-500 font-medium'
-                : isSat
-                ? 'text-blue-600 font-medium'
-                : 'text-slate-700 font-medium'
-
-              return (
-                <div
-                  key={d.toISOString()}
-                  onClick={() => setSelectedDay(d)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedDay(d) }}
-                  className={[
-                    'min-h-[80px] p-2 text-left border-l border-slate-100 first:border-l-0 transition-colors select-none cursor-pointer',
-                    inMonth ? 'hover:bg-slate-50/80' : 'bg-slate-50/40',
-                  ].join(' ')}
-                >
-                  <div className="mb-1.5">
-                    <span
-                      className={`inline-flex w-7 h-7 items-center justify-center rounded-full text-sm transition-colors ${numberClass}`}
-                    >
-                      {format(d, 'd')}
-                    </span>
-                  </div>
-
-                  <div className="space-y-0.5">
-                    {dayEvents.slice(0, 2).map((ev) => {
-                      const cfg = EVENT_CONFIG[ev.type]
-                      if (ev.is_manual) {
-                        return (
-                          <button
-                            key={ev.id}
-                            onClick={(e) => { e.stopPropagation(); setDetailEvent(ev) }}
-                            className={`block w-full text-xs px-1.5 py-0.5 rounded border truncate leading-4 text-left ${cfg.chipClass} hover:opacity-80 transition-opacity`}
-                            title={`${ev.title}（${cfg.label}）`}
-                          >
-                            {ev.title}
-                          </button>
-                        )
-                      }
-                      return (
-                        <Link
-                          key={ev.id}
-                          href={`/dashboard/company/${ev.application_id}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className={`block text-xs px-1.5 py-0.5 rounded border truncate leading-4 ${cfg.chipClass} hover:opacity-80 transition-opacity`}
-                          title={`${ev.title}（${cfg.label}）`}
-                        >
-                          {shortName(ev.title)}
-                        </Link>
-                      )
-                    })}
-                    {dayEvents.length > 2 && (
-                      <p className="text-xs text-slate-400 pl-1.5">他{dayEvents.length - 2}件</p>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        ))}
-      </div>
+        {/* ドラッグ中のゴースト */}
+        <DragOverlay>
+          {draggingEvent && (
+            <div
+              className={`text-xs px-1.5 py-0.5 rounded border truncate leading-4 shadow-lg cursor-grabbing ${EVENT_CONFIG[draggingEvent.type].chipClass}`}
+            >
+              {draggingEvent.title}
+            </div>
+          )}
+        </DragOverlay>
+      </DndContext>
 
       {/* 凡例 */}
       <div className="flex items-center gap-3 flex-wrap">

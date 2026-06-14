@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
 export const maxDuration = 30
 
@@ -9,15 +9,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'name is required' }, { status: 400 })
   }
 
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-1.5-flash',
+    generationConfig: { responseMimeType: 'application/json' },
+  })
 
   try {
-    const response = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'user',
-          content: `「${name}」という企業について、就活生向けに以下のJSONで情報を教えてください。
+    const result = await model.generateContent(`「${name}」という企業について、就活生向けに以下のJSONで情報を教えてください。
 存在しない企業や不明な場合は推測で回答してください。
 
 {
@@ -26,14 +25,9 @@ export async function GET(req: NextRequest) {
   "jobs": "採用職種（例: ソフトウェアエンジニア、営業職など）"
 }
 
-JSONのみを返してください。`,
-        },
-      ],
-      response_format: { type: 'json_object' },
-      max_tokens: 200,
-    })
+JSONのみを返してください。`)
 
-    const content = response.choices[0].message.content
+    const content = result.response.text()
     if (!content) throw new Error('Empty response')
 
     const parsed = JSON.parse(content) as {

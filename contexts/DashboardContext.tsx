@@ -5,10 +5,13 @@ import {
   useContext,
   useState,
   useCallback,
+  useRef,
   useEffect,
   type ReactNode,
 } from 'react'
 import type { Database, ApplicationStatus } from '@/types/database'
+import { updateApplicationStatus } from '@/app/dashboard/actions'
+import { readOverlay, writeOverlay } from '@/lib/status-overlay'
 import { toast } from 'sonner'
 
 type Application = Database['public']['Tables']['applications']['Row']
@@ -20,25 +23,6 @@ export interface UpdateRecord {
   toStatus?: ApplicationStatus
   action?: string
   timestamp: string
-}
-
-// localStorage でステータス変更を永続化（デモモード）
-const STATUS_STORAGE_KEY = 'jobtrack_status_overrides'
-
-function loadStatusOverrides(): Record<string, ApplicationStatus> {
-  if (typeof window === 'undefined') return {}
-  try {
-    return JSON.parse(localStorage.getItem(STATUS_STORAGE_KEY) ?? '{}')
-  } catch {
-    return {}
-  }
-}
-
-function saveStatusOverride(id: string, status: ApplicationStatus) {
-  if (typeof window === 'undefined') return
-  const overrides = loadStatusOverrides()
-  overrides[id] = status
-  localStorage.setItem(STATUS_STORAGE_KEY, JSON.stringify(overrides))
 }
 
 interface DashboardContextType {
@@ -61,16 +45,34 @@ export function DashboardProvider({
   children: ReactNode
 }) {
   const [applications, setApplications] = useState(initialApplications)
-  const [todayUpdates, setTodayUpdates] = useState<UpdateRecord[]>(initialTodayUpdates)
+  const [todayUpdates, setTodayUpdates] =
+    useState<UpdateRecord[]>(initialTodayUpdates)
+  const overlayRef = useRef<Record<string, ApplicationStatus>>({})
 
-  // ハイドレーション後にlocalStorageのオーバーライドを適用
+  // マウント時：未確定の変更を復元し、サーバーへ再送する
   useEffect(() => {
-    const overrides = loadStatusOverrides()
-    if (Object.keys(overrides).length > 0) {
-      setApplications((prev) =>
-        prev.map((a) => (a.id in overrides ? { ...a, status: overrides[a.id] } : a))
-      )
-    }
+    const overlay = readOverlay()
+    overlayRef.current = overlay
+    const ids = Object.keys(overlay)
+    if (ids.length === 0) return
+
+    // 画面に未確定ステータスを反映（localStorage参照のためマウント後に実行）
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setApplications((prev) =>
+      prev.map((a) => (overlay[a.id] ? { ...a, status: overlay[a.id] } : a))
+    )
+
+    // バックグラウンドで再送し、成功したものをオーバーレイから外す
+    ids.forEach((id) => {
+      updateApplicationStatus(id, overlay[id])
+        .then(() => {
+          delete overlayRef.current[id]
+          writeOverlay(overlayRef.current)
+        })
+        .catch(() => {
+          /* 失敗時はオーバーレイに残す（次回再送） */
+        })
+    })
   }, [])
 
   const updateStatus = useCallback(
@@ -80,7 +82,7 @@ export function DashboardProvider({
 
       const fromStatus = target.status as ApplicationStatus
 
-      // ローカルstateを即時更新
+      // 楽観的UI更新
       setApplications((prev) =>
         prev.map((a) => (a.id === id ? { ...a, status: newStatus } : a))
       )
@@ -95,8 +97,19 @@ export function DashboardProvider({
         ...prev,
       ])
 
-      // localStorageに永続化（リロード後も変更を維持）
-      saveStatusOverride(id, newStatus)
+      // まず localStorage に控える（保存失敗してもリロードで維持される）
+      overlayRef.current[id] = newStatus
+      writeOverlay(overlayRef.current)
+
+      // Supabaseへ永続化。成功したらオーバーレイから外す
+      updateApplicationStatus(id, newStatus)
+        .then(() => {
+          delete overlayRef.current[id]
+          writeOverlay(overlayRef.current)
+        })
+        .catch(() => {
+          toast.error('保存に失敗しました（変更は端末に保持されます）')
+        })
 
       toast.success(`${target.company_name} のステータスを更新しました`)
     },
@@ -118,11 +131,21 @@ export function DashboardProvider({
 
   const removeApplication = useCallback((id: string) => {
     setApplications((prev) => prev.filter((a) => a.id !== id))
+    if (overlayRef.current[id]) {
+      delete overlayRef.current[id]
+      writeOverlay(overlayRef.current)
+    }
   }, [])
 
   return (
     <DashboardContext.Provider
-      value={{ applications, todayUpdates, updateStatus, addApplication, removeApplication }}
+      value={{
+        applications,
+        todayUpdates,
+        updateStatus,
+        addApplication,
+        removeApplication,
+      }}
     >
       {children}
     </DashboardContext.Provider>

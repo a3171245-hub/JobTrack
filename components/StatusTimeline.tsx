@@ -63,9 +63,9 @@ export default function StatusTimeline({
                 <div
                   className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
                     isCurrent
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-200 ring-4 ring-blue-100'
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 ring-4 ring-indigo-100'
                       : isPast
-                      ? 'bg-blue-100 text-blue-600'
+                      ? 'bg-indigo-100 text-indigo-600'
                       : 'bg-slate-100 text-slate-300'
                   }`}
                 >
@@ -80,9 +80,9 @@ export default function StatusTimeline({
                 <span
                   className={`text-xs text-center leading-tight whitespace-nowrap ${
                     isCurrent
-                      ? 'font-bold text-blue-700'
+                      ? 'font-bold text-indigo-700'
                       : isPast
-                      ? 'text-blue-500 font-medium'
+                      ? 'text-indigo-500 font-medium'
                       : 'text-slate-400'
                   }`}
                 >

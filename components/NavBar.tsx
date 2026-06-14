@@ -1,13 +1,18 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Button, buttonVariants } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
-import { Inbox, LayoutDashboard, CalendarDays, LogOut, Check } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Inbox, LayoutDashboard, CalendarDays, Mail, LogOut, Check } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
+
+const NAV_ITEMS = [
+  { href: '/dashboard', label: 'ダッシュボード', icon: LayoutDashboard },
+  { href: '/calendar', label: 'カレンダー', icon: CalendarDays },
+  { href: '/mail', label: 'メール', icon: Mail },
+]
 
 export default function NavBar({
   user,
@@ -17,6 +22,7 @@ export default function NavBar({
   dedicatedEmail?: string | null
 }) {
   const router = useRouter()
+  const pathname = usePathname()
   const supabase = createClient()
   const [copiedUser, setCopiedUser] = useState(false)
   const [copiedDedicated, setCopiedDedicated] = useState(false)
@@ -42,38 +48,45 @@ export default function NavBar({
   }
 
   return (
-    <header className="bg-white border-b sticky top-0 z-50">
-      <div className="max-w-[1400px] mx-auto px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <Inbox className="h-5 w-5 text-blue-600" />
-            <span className="font-bold text-slate-900">JobTrack</span>
-          </Link>
-          <nav className="hidden sm:flex items-center gap-1">
-            <Link
-              href="/dashboard"
-              className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'gap-1.5')}
-            >
-              <LayoutDashboard className="w-4 h-4" />
-              ダッシュボード
-            </Link>
-            <Link
-              href="/calendar"
-              className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'gap-1.5')}
-            >
-              <CalendarDays className="w-4 h-4" />
-              カレンダー
-            </Link>
-          </nav>
-        </div>
+    <header className="bg-white border-b border-slate-100 sticky top-0 z-50">
+      <div className="relative max-w-[1400px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+        {/* ロゴ（左） */}
+        <Link href="/dashboard" className="flex items-center gap-2 flex-shrink-0">
+          <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-sm">
+            <Inbox className="h-4 w-4" />
+          </span>
+          <span className="font-bold text-slate-900">JobTrack</span>
+        </Link>
 
-        <div className="flex items-center gap-3">
+        {/* ナビ（中央） */}
+        <nav className="hidden sm:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
+          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+            const active = pathname === href || pathname.startsWith(href + '/')
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-sm font-medium transition-colors ${
+                  active
+                    ? 'bg-indigo-50 text-indigo-700'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+              </Link>
+            )
+          })}
+        </nav>
+
+        {/* ユーザー（右） */}
+        <div className="flex items-center gap-3 flex-shrink-0">
           {/* 専用メールアドレス（Mailgun） */}
           {dedicatedEmail && (
             <div className="relative hidden md:block">
               <button
                 onClick={copyDedicatedEmail}
-                className="text-xs font-mono text-slate-400 hover:text-blue-600 transition-colors"
+                className="text-xs font-mono text-slate-400 hover:text-indigo-600 transition-colors"
                 title="クリックしてコピー"
               >
                 {copiedDedicated ? (
@@ -92,7 +105,7 @@ export default function NavBar({
           <div className="relative hidden sm:block">
             <button
               onClick={copyUserEmail}
-              className="text-sm text-slate-500 hover:text-blue-600 transition-colors"
+              className="text-sm text-slate-500 hover:text-indigo-600 transition-colors"
               title="クリックしてコピー"
             >
               {user.email}

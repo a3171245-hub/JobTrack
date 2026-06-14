@@ -1,34 +1,17 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { updateApplicationStatus } from '@/app/dashboard/actions'
+import { setPendingStatus, clearPendingStatus } from '@/lib/status-overlay'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
 } from '@/components/ui/select'
-import { STATUS_LABELS, KANBAN_COLUMNS } from '@/lib/constants'
+import { STATUS_LABELS, STATUS_COLORS, KANBAN_COLUMNS } from '@/lib/constants'
 import type { ApplicationStatus } from '@/types/database'
 import { toast } from 'sonner'
-
-const STORAGE_KEY = 'jobtrack_status_overrides'
-
-function readOverride(id: string): ApplicationStatus | null {
-  try {
-    const overrides = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Record<string, ApplicationStatus>
-    return overrides[id] ?? null
-  } catch {
-    return null
-  }
-}
-
-function writeOverride(id: string, status: ApplicationStatus) {
-  try {
-    const overrides = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Record<string, ApplicationStatus>
-    overrides[id] = status
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(overrides))
-  } catch {}
-}
 
 export default function StatusSelector({
   applicationId,
@@ -39,18 +22,20 @@ export default function StatusSelector({
 }) {
   const [status, setStatus] = useState<ApplicationStatus>(currentStatus)
 
-  // Sync with localStorage on mount (overrides server-rendered value)
-  useEffect(() => {
-    const override = readOverride(applicationId)
-    if (override) setStatus(override)
-  }, [applicationId])
-
   function handleChange(value: string | null) {
     if (!value) return
     const newStatus = value as ApplicationStatus
-
     setStatus(newStatus)
-    writeOverride(applicationId, newStatus)
+
+    // 保存失敗時に備えてローカルへ控える
+    setPendingStatus(applicationId, newStatus)
+
+    updateApplicationStatus(applicationId, newStatus)
+      .then(() => clearPendingStatus(applicationId))
+      .catch(() =>
+        toast.error('保存に失敗しました（変更は端末に保持されます）')
+      )
+
     toast.success(`ステータスを「${STATUS_LABELS[newStatus]}」に変更しました`)
   }
 
@@ -58,7 +43,9 @@ export default function StatusSelector({
 
   return (
     <Select value={status} onValueChange={handleChange}>
-      <SelectTrigger className="w-36">
+      <SelectTrigger
+        className={`w-36 font-medium ${STATUS_COLORS[status]}`}
+      >
         <span className="flex-1 text-left text-sm">{STATUS_LABELS[status]}</span>
       </SelectTrigger>
       <SelectContent>

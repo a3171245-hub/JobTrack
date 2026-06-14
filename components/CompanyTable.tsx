@@ -6,6 +6,7 @@ import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { STATUS_LABELS, KANBAN_COLUMNS } from '@/lib/constants'
 import InlineStatusBadge from '@/components/InlineStatusBadge'
+import AddApplicationDialog from '@/components/AddApplicationDialog'
 import { useDashboard } from '@/contexts/DashboardContext'
 import { deleteApplication } from '@/app/dashboard/actions'
 import { AFFILIATE_URL } from '@/lib/constants'
@@ -21,19 +22,30 @@ import {
   ExternalLink,
   Search,
   X,
-  AlertCircle,
+  Rocket,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { ApplicationStatus } from '@/types/database'
 
 const AVATAR_COLORS = [
-  'bg-blue-100 text-blue-700',
-  'bg-violet-100 text-violet-700',
-  'bg-green-100 text-green-700',
-  'bg-orange-100 text-orange-700',
-  'bg-cyan-100 text-cyan-700',
-  'bg-pink-100 text-pink-700',
+  'bg-gradient-to-br from-indigo-500 to-violet-500',
+  'bg-gradient-to-br from-violet-500 to-fuchsia-500',
+  'bg-gradient-to-br from-emerald-500 to-teal-500',
+  'bg-gradient-to-br from-amber-500 to-orange-500',
+  'bg-gradient-to-br from-sky-500 to-indigo-500',
+  'bg-gradient-to-br from-rose-500 to-pink-500',
 ]
+
+// ES締切が近い（過去でなく3日以内）かどうか
+function isDeadlineSoon(deadline: string | null | undefined): boolean {
+  if (!deadline) return false
+  const d = new Date(deadline)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  d.setHours(0, 0, 0, 0)
+  const days = Math.ceil((d.getTime() - today.getTime()) / 86400000)
+  return days >= 0 && days <= 3
+}
 
 const STATUS_FILTER_OPTIONS: { value: ApplicationStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'すべてのステータス' },
@@ -48,38 +60,39 @@ function EsDeadlineCell({ deadline }: { deadline: string | null }) {
   today.setHours(0, 0, 0, 0)
   deadlineDate.setHours(0, 0, 0, 0)
   const daysLeft = Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  const dateStr = format(new Date(deadline), 'M/d', { locale: ja })
 
   if (daysLeft < 0) {
+    return <span className="text-xs text-slate-400">{dateStr}</span>
+  }
+
+  if (daysLeft === 0) {
     return (
-      <span className="text-xs text-slate-400">
-        {format(new Date(deadline), 'M/d', { locale: ja })}
+      <span className="text-xs font-medium text-red-600">
+        {dateStr} <span className="text-red-400">今日</span>
       </span>
     )
   }
 
   if (daysLeft <= 3) {
     return (
-      <div className="flex items-center gap-1 text-red-600 bg-red-50 rounded-lg px-2 py-1 w-fit">
-        <AlertCircle className="w-3 h-3 flex-shrink-0" />
-        <span className="text-xs font-medium">{format(new Date(deadline), 'M/d', { locale: ja })}</span>
-        <span className="text-xs">({daysLeft}日)</span>
-      </div>
+      <span className="text-xs font-medium text-red-600">
+        {dateStr} <span className="text-red-400">{daysLeft}日後</span>
+      </span>
     )
   }
 
   if (daysLeft <= 7) {
     return (
-      <div className="flex items-center gap-1 text-amber-600 bg-amber-50 rounded-lg px-2 py-1 w-fit">
-        <AlertCircle className="w-3 h-3 flex-shrink-0" />
-        <span className="text-xs font-medium">{format(new Date(deadline), 'M/d', { locale: ja })}</span>
-        <span className="text-xs">({daysLeft}日)</span>
-      </div>
+      <span className="text-xs font-medium text-amber-600">
+        {dateStr} <span className="text-amber-400">{daysLeft}日後</span>
+      </span>
     )
   }
 
   return (
-    <span className="text-xs text-slate-600">
-      {format(new Date(deadline), 'M/d', { locale: ja })}
+    <span className="text-xs text-slate-500">
+      {dateStr} <span className="text-slate-400">{daysLeft}日後</span>
     </span>
   )
 }
@@ -89,7 +102,7 @@ function CompanyAvatar({ name }: { name: string }) {
   const color = AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]
   return (
     <div
-      className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0 ${color}`}
+      className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-sm flex-shrink-0 ${color}`}
     >
       {initial}
     </div>
@@ -128,6 +141,29 @@ export default function CompanyTable() {
     ? []
     : filteredApps.filter((a) => a.status === 'rejected')
 
+  // 企業が1社もない場合：温かみのある空状態
+  if (applications.filter((a) => a.status !== 'event').length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center text-center py-20 px-6 bg-white rounded-2xl ring-1 ring-slate-900/5 shadow-sm animate-fade-in-up">
+        <div className="relative mb-6">
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center">
+            <Building2 className="w-9 h-9 text-indigo-500" />
+          </div>
+          <span className="absolute -right-2 -bottom-2 w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-md">
+            <Rocket className="w-4 h-4 text-white" />
+          </span>
+        </div>
+        <h3 className="text-lg font-bold text-slate-900 mb-1.5">
+          最初の企業を追加しよう
+        </h3>
+        <p className="text-sm text-slate-500 max-w-xs mb-6 leading-relaxed">
+          応募した企業を登録すると、選考ステータスやES締切、面接日程をここで一元管理できます。
+        </p>
+        <AddApplicationDialog />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
       {/* 検索・フィルターバー */}
@@ -139,7 +175,7 @@ export default function CompanyTable() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="企業名で検索..."
-            className="w-full h-9 pl-9 pr-8 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-colors"
+            className="w-full h-9 pl-9 pr-8 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-colors"
           />
           {searchQuery && (
             <button
@@ -154,7 +190,7 @@ export default function CompanyTable() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as ApplicationStatus | 'all')}
-          className="h-9 pl-3 pr-8 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-colors appearance-none cursor-pointer"
+          className="h-9 pl-3 pr-8 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-colors appearance-none cursor-pointer"
           style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', paddingRight: '28px' }}
         >
           {STATUS_FILTER_OPTIONS.map(({ value, label }) => (
@@ -205,9 +241,9 @@ function TableBody({
 }) {
   if (apps.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white rounded-2xl border border-slate-200">
+      <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white rounded-2xl ring-1 ring-slate-900/5">
         <Building2 className="w-10 h-10 mb-3 opacity-40" />
-        <p className="text-sm">企業がありません</p>
+        <p className="text-sm">条件に一致する企業がありません</p>
       </div>
     )
   }
@@ -236,8 +272,16 @@ function TableBody({
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {apps.map((app) => (
-            <tr key={app.id} className="hover:bg-blue-50/30 transition-colors group">
+          {apps.map((app) => {
+            const deadlineSoon = isDeadlineSoon(app.es_deadline)
+            return (
+            <tr
+              key={app.id}
+              className={cn(
+                'group transition-colors border-l-2 border-l-transparent hover:border-l-indigo-500',
+                deadlineSoon ? 'bg-rose-50/60 hover:bg-rose-50' : 'hover:bg-indigo-50/40'
+              )}
+            >
               <td className="px-5 py-4">
                 <div className="flex items-center gap-3">
                   <CompanyAvatar name={app.company_name} />
@@ -261,7 +305,7 @@ function TableBody({
               </td>
               <td className="px-5 py-4 hidden lg:table-cell">
                 {app.interview_date ? (
-                  <div className="flex items-center gap-1.5 text-blue-700 bg-blue-50 rounded-lg px-2.5 py-1.5 w-fit">
+                  <div className="flex items-center gap-1.5 text-indigo-700 bg-indigo-50 rounded-lg px-2.5 py-1.5 w-fit">
                     <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
                     <span className="text-xs font-medium">
                       {format(new Date(app.interview_date), 'M/d(E) HH:mm', { locale: ja })}
@@ -281,7 +325,7 @@ function TableBody({
                       href={AFFILIATE_URL}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-blue-600 hover:underline flex items-center gap-0.5 mr-1"
+                      className="text-xs text-indigo-600 hover:underline flex items-center gap-0.5 mr-1"
                       title="エージェントに相談"
                     >
                       <ExternalLink className="w-3 h-3" />
@@ -289,7 +333,7 @@ function TableBody({
                   )}
                   <button
                     onClick={() => onDelete(app.id, app.company_name)}
-                    className="text-slate-300 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-1 rounded"
+                    className="text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100 p-1 rounded"
                     aria-label="削除"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -298,7 +342,7 @@ function TableBody({
                     href={`/dashboard/company/${app.id}`}
                     className={cn(
                       buttonVariants({ variant: 'ghost', size: 'sm' }),
-                      'opacity-0 group-hover:opacity-100 transition-opacity gap-0.5 px-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50'
+                      'opacity-0 group-hover:opacity-100 transition-opacity gap-0.5 px-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50'
                     )}
                   >
                     詳細 <ChevronRight className="w-3.5 h-3.5" />
@@ -306,7 +350,8 @@ function TableBody({
                 </div>
               </td>
             </tr>
-          ))}
+            )
+          })}
         </tbody>
       </table>
     </div>

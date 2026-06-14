@@ -49,38 +49,39 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  /* JobTrack brand palette — Indigo #4F46E5 / Violet #7C3AED */
+  --background: oklch(0.984 0.003 247.858); /* slate-50 */
+  --foreground: oklch(0.208 0.042 265.755); /* slate-800 */
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.208 0.042 265.755);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.208 0.042 265.755);
+  --primary: oklch(0.511 0.262 276.966); /* indigo-600 #4F46E5 */
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  --secondary: oklch(0.968 0.007 247.896); /* slate-100 */
+  --secondary-foreground: oklch(0.279 0.041 260.031);
+  --muted: oklch(0.968 0.007 247.896);
+  --muted-foreground: oklch(0.554 0.046 257.417); /* slate-500 */
+  --accent: oklch(0.962 0.018 272.314); /* indigo-50 */
+  --accent-foreground: oklch(0.398 0.195 277.366); /* indigo-700 */
+  --destructive: oklch(0.586 0.222 17.585); /* rose-600 #E11D48 */
+  --border: oklch(0.929 0.013 255.508); /* slate-200 */
+  --input: oklch(0.929 0.013 255.508);
+  --ring: oklch(0.511 0.262 276.966);
+  --chart-1: oklch(0.511 0.262 276.966);
+  --chart-2: oklch(0.541 0.281 293.009); /* violet-600 */
+  --chart-3: oklch(0.596 0.145 163.225); /* emerald-600 */
+  --chart-4: oklch(0.666 0.179 58.318); /* amber-600 */
+  --chart-5: oklch(0.586 0.222 17.585); /* rose-600 */
+  --radius: 0.75rem; /* 12px cards */
   --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.208 0.042 265.755);
+  --sidebar-primary: oklch(0.511 0.262 276.966);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-accent: oklch(0.962 0.018 272.314);
+  --sidebar-accent-foreground: oklch(0.398 0.195 277.366);
+  --sidebar-border: oklch(0.929 0.013 255.508);
+  --sidebar-ring: oklch(0.511 0.262 276.966);
 }
 
 .dark {
@@ -123,8 +124,59 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: 'palt';
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* ── Animations ───────────────────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in-down {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.animate-fade-in      { animation: fade-in 0.4s ease-out both; }
+.animate-fade-in-up   { animation: fade-in-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-fade-in-down { animation: fade-in-down 0.4s ease-out both; }
+
+/* Stagger helpers */
+.animate-fade-in-up.delay-1 { animation-delay: 0.06s; }
+.animate-fade-in-up.delay-2 { animation-delay: 0.12s; }
+.animate-fade-in-up.delay-3 { animation-delay: 0.18s; }
+.animate-fade-in-up.delay-4 { animation-delay: 0.24s; }
+
+/* ── Skeleton ─────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    oklch(0.929 0.013 255.508 / 0.6) 25%,
+    oklch(0.968 0.007 247.896) 37%,
+    oklch(0.929 0.013 255.508 / 0.6) 63%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: 0.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-fade-in-up,
+  .animate-fade-in-down,
+  .skeleton {
+    animation: none;
   }
 }
