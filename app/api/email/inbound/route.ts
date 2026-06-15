@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
 
   // Find user by dedicated_email (exact match on the To address)
   // Strip any display name, e.g. "Name <addr@domain>" → "addr@domain"
+  console.log("[DEBUG] to:", to);
   const toAddress = (to.match(/<([^>]+)>/) ?? [, to])[1]!.toLowerCase().trim()
 
   const { data: userRecord } = await supabase
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
     .select('id')
     .ilike('dedicated_email', toAddress)
     .maybeSingle()
+  console.log("[DEBUG] toAddress:", toAddress)
 
   if (!userRecord) {
     // Unknown recipient — accept silently so Cloudflare doesn't retry
@@ -87,6 +89,7 @@ export async function POST(request: NextRequest) {
     .eq('user_id', userId)
     .eq('company_name', analysis.company_name)
     .maybeSingle()
+  console.log("[DEBUG] toAddress:", toAddress)
 
   let applicationId: string
 

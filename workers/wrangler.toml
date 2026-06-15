@@ -3,4 +3,4 @@ main = "email-handler.js"
 compatibility_date = "2024-01-01"
 
 [vars]
-JOBTRACK_API_URL = "https://jobtrack.jp"
+JOBTRACK_API_URL = "https://job-track-tawny.vercel.app"
