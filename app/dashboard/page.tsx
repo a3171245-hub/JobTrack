@@ -1,12 +1,29 @@
 import { redirect } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import NavBar from '@/components/NavBar'
 import CompanyTable from '@/components/CompanyTable'
 import AddApplicationDialog from '@/components/AddApplicationDialog'
 import TodayUpdates from '@/components/TodayUpdates'
-import NavBar from '@/components/NavBar'
-import { DashboardProvider, type UpdateRecord } from '@/contexts/DashboardContext'
+import type { UpdateRecord } from '@/contexts/DashboardContext'
 import type { ApplicationStatus } from '@/types/database'
+
+// DashboardProvider を ssr:false で読み込む
+// → サーバー/クライアントのタイムゾーン差による Hydration エラー (#418) を回避
+const DashboardProvider = dynamic(
+  () => import('@/contexts/DashboardContext').then((m) => m.DashboardProvider),
+  {
+    ssr: false,
+    loading: () => (
+      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8">
+        <div className="h-28 bg-white rounded-2xl animate-pulse mb-6" />
+        <div className="h-10 w-48 bg-white rounded-xl animate-pulse mb-4" />
+        <div className="h-80 bg-white rounded-2xl animate-pulse" />
+      </main>
+    ),
+  }
+)
 
 export default async function DashboardPage() {
   const authClient = await createClient()
@@ -41,7 +58,6 @@ export default async function DashboardPage() {
         .order('received_at', { ascending: false }),
     ])
 
-  // ログインユーザー自身のデータのみ（ダミーは使わない）
   const applications =
     applicationsResult.status === 'fulfilled' && applicationsResult.value.data
       ? applicationsResult.value.data
@@ -77,13 +93,15 @@ export default async function DashboardPage() {
     .filter(Boolean) as UpdateRecord[]
 
   return (
-    <DashboardProvider
-      initialApplications={applications}
-      initialTodayUpdates={initialTodayUpdates}
-    >
-      <div className="min-h-screen bg-slate-50">
-        <NavBar user={user} dedicatedEmail={profile?.dedicated_email ?? null} />
+    <div className="min-h-screen bg-slate-50">
+      {/* NavBar はSSR対象（即時表示）*/}
+      <NavBar user={user} dedicatedEmail={profile?.dedicated_email ?? null} />
 
+      {/* DashboardProvider 以下は CSR のみ。Hydration エラーを根本回避 */}
+      <DashboardProvider
+        initialApplications={applications}
+        initialTodayUpdates={initialTodayUpdates}
+      >
         <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 animate-fade-in">
           <TodayUpdates />
 
@@ -99,7 +117,7 @@ export default async function DashboardPage() {
 
           <CompanyTable />
         </main>
-      </div>
-    </DashboardProvider>
+      </DashboardProvider>
+    </div>
   )
 }
