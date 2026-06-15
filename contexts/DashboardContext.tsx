@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { Database, ApplicationStatus } from '@/types/database'
-import { updateApplicationStatus } from '@/app/dashboard/actions'
+import { createClient } from '@/lib/supabase/client'
 import { readOverlay, writeOverlay } from '@/lib/status-overlay'
 import { toast } from 'sonner'
 
@@ -49,7 +49,7 @@ export function DashboardProvider({
     useState<UpdateRecord[]>(initialTodayUpdates)
   const overlayRef = useRef<Record<string, ApplicationStatus>>({})
 
-  // マウント時：未確定の変更を復元し、サーバーへ再送する
+  // マウント時：未確定の変更を復元し、ブラウザクライアント経由で再送する
   useEffect(() => {
     const overlay = readOverlay()
     overlayRef.current = overlay
@@ -62,21 +62,29 @@ export function DashboardProvider({
       prev.map((a) => (overlay[a.id] ? { ...a, status: overlay[a.id] } : a))
     )
 
-    // バックグラウンドで再送し、成功したものをオーバーレイから外す
-    ids.forEach((id) => {
-      updateApplicationStatus(id, overlay[id])
-        .then(() => {
-          delete overlayRef.current[id]
-          writeOverlay(overlayRef.current)
-        })
-        .catch(() => {
-          /* 失敗時はオーバーレイに残す（次回再送） */
-        })
+    // バックグラウンドで再送
+    const supabase = createClient()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user?.id) return
+      ids.forEach((id) => {
+        supabase
+          .from('applications')
+          .update({ status: overlay[id], updated_at: new Date().toISOString() })
+          .eq('id', id)
+          .eq('user_id', session.user.id)
+          .then(
+            () => {
+              delete overlayRef.current[id]
+              writeOverlay(overlayRef.current)
+            },
+            () => { /* 失敗時はオーバーレイに残す（次回再送） */ }
+          )
+      })
     })
   }, [])
 
   const updateStatus = useCallback(
-    (id: string, newStatus: ApplicationStatus) => {
+    async (id: string, newStatus: ApplicationStatus) => {
       const target = applications.find((a) => a.id === id)
       if (!target || target.status === newStatus) return
 
@@ -103,21 +111,41 @@ export function DashboardProvider({
 
       toast.success(`${target.company_name} のステータスを更新しました`)
 
-      // Supabaseへ永続化。成功したらオーバーレイから外す
-      updateApplicationStatus(id, newStatus)
-        .then(() => {
-          delete overlayRef.current[id]
-          writeOverlay(overlayRef.current)
-        })
-        .catch(() => {
-          // 保存失敗時: UIを元のステータスにロールバック
-          setApplications((prev) =>
-            prev.map((a) => (a.id === id ? { ...a, status: fromStatus } : a))
-          )
-          delete overlayRef.current[id]
-          writeOverlay(overlayRef.current)
-          toast.error(`${target.company_name} の保存に失敗しました`)
-        })
+      // ブラウザクライアントでセッション確認してから永続化
+      try {
+        const supabase = createClient()
+        const { data: { session } } = await supabase.auth.getSession()
+        console.log('[DashboardContext] session user:', session?.user?.id)
+        console.log('[DashboardContext] updating app:', id, '→', newStatus)
+
+        if (!session?.user?.id) {
+          throw new Error('no active session')
+        }
+
+        const { data, error } = await supabase
+          .from('applications')
+          .update({ status: newStatus, updated_at: new Date().toISOString() })
+          .eq('id', id)
+          .eq('user_id', session.user.id)
+          .select()
+
+        console.log('[DashboardContext] update result:', data, error)
+
+        if (error) throw error
+
+        // 保存成功 → オーバーレイを解除
+        delete overlayRef.current[id]
+        writeOverlay(overlayRef.current)
+      } catch (err) {
+        console.error('[DashboardContext] updateStatus failed:', err)
+        // 保存失敗時: UIを元のステータスにロールバック
+        setApplications((prev) =>
+          prev.map((a) => (a.id === id ? { ...a, status: fromStatus } : a))
+        )
+        delete overlayRef.current[id]
+        writeOverlay(overlayRef.current)
+        toast.error(`${target.company_name} の保存に失敗しました`)
+      }
     },
     [applications]
   )
