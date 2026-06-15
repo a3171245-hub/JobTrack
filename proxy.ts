@@ -25,21 +25,19 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  const protectedPaths = ['/dashboard', '/calendar', '/mail', '/settings']
-  const isProtected = protectedPaths.some((path) =>
-    request.nextUrl.pathname.startsWith(path)
-  )
-
-  if (isProtected && !user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
-    url.searchParams.set('error', 'auth_required')
-    return NextResponse.redirect(url)
-  }
+  // DEV BYPASS: 認証チェック一時無効
+  // await supabase.auth.getUser()
+  //
+  // const protectedPaths = ['/dashboard', '/calendar', '/mail', '/settings']
+  // const isProtected = protectedPaths.some((path) =>
+  //   request.nextUrl.pathname.startsWith(path)
+  // )
+  // if (isProtected && !user) {
+  //   const url = request.nextUrl.clone()
+  //   url.pathname = '/'
+  //   url.searchParams.set('error', 'auth_required')
+  //   return NextResponse.redirect(url)
+  // }
 
   return supabaseResponse
 }

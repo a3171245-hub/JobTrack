@@ -5,12 +5,38 @@ import NavBar from '@/components/NavBar'
 import DashboardShell from './DashboardShell'
 import type { UpdateRecord } from '@/contexts/DashboardContext'
 import type { ApplicationStatus } from '@/types/database'
+import type { User } from '@supabase/supabase-js'
+
+// DEV BYPASS: テスト用ダミーユーザー
+const DEV_EMAIL = 'a3171245@gmail.com'
 
 export default async function DashboardPage() {
   const authClient = await createClient()
   const {
-    data: { user },
+    data: { user: sessionUser },
   } = await authClient.auth.getUser()
+
+  // DEV BYPASS: セッションがなければダミーユーザーにフォールバック
+  let user: User | null = sessionUser
+  if (!user) {
+    const supabaseAdmin = createAdminClient()
+    const { data: devRecord } = await supabaseAdmin
+      .from('users')
+      .select('id, email')
+      .eq('email', DEV_EMAIL)
+      .maybeSingle()
+    if (devRecord) {
+      user = {
+        id: devRecord.id,
+        email: devRecord.email,
+        app_metadata: {},
+        user_metadata: {},
+        aud: 'authenticated',
+        created_at: new Date().toISOString(),
+      } as User
+    }
+  }
+
   if (!user) redirect('/')
 
   const supabase = createAdminClient()
