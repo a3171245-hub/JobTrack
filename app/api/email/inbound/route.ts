@@ -44,19 +44,25 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createAdminClient()
-  console.log("[DEBUG] supabase url:", process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0,30), "key exists:", !!process.env.SUPABASE_SERVICE_ROLE_KEY)
+  console.log('[DEBUG] supabase url:', process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0, 30), 'key exists:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
 
-  // Find user by dedicated_email (exact match on the To address)
-  // Strip any display name, e.g. "Name <addr@domain>" → "addr@domain"
-  console.log("[DEBUG] to:", to);
+  // Strip display name: "Name <addr@domain>" → "addr@domain"
+  console.log('[DEBUG] raw to:', to)
   const toAddress = (to.match(/<([^>]+)>/) ?? [, to])[1]!.toLowerCase().trim()
+  console.log('[DEBUG] toAddress:', toAddress)
 
-  const { data: userRecord } = await supabase
+  // Use .eq() (not .ilike()) — email addresses with @ can confuse PostgREST URL parsing
+  const { data: userRecord, error: lookupError } = await supabase
     .from('users')
     .select('id')
-    .ilike('dedicated_email', toAddress)
+    .eq('dedicated_email', toAddress)
     .maybeSingle()
-  console.log("[DEBUG] toAddress:", toAddress)
+  console.log('[DEBUG] userRecord:', userRecord, 'lookupError:', lookupError)
+
+  if (lookupError) {
+    console.error('[email/inbound] user lookup failed:', lookupError)
+    return NextResponse.json({ error: 'DB error' }, { status: 500 })
+  }
 
   if (!userRecord) {
     // Unknown recipient — accept silently so Cloudflare doesn't retry
@@ -90,7 +96,6 @@ export async function POST(request: NextRequest) {
     .eq('user_id', userId)
     .eq('company_name', analysis.company_name)
     .maybeSingle()
-  console.log("[DEBUG] toAddress:", toAddress)
 
   let applicationId: string
 
