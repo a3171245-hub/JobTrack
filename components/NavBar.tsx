@@ -6,13 +6,14 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import ThemeToggle from '@/components/ThemeToggle'
-import { Inbox, LayoutDashboard, CalendarDays, Mail, LogOut, Check } from 'lucide-react'
+import { Inbox, LayoutDashboard, CalendarDays, Mail, LogOut, Check, Settings } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'ダッシュボード', icon: LayoutDashboard },
   { href: '/calendar', label: 'カレンダー', icon: CalendarDays },
   { href: '/mail', label: 'メール', icon: Mail },
+  { href: '/settings', label: '設定', icon: Settings },
 ]
 
 export default function NavBar({

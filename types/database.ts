@@ -30,18 +30,33 @@ export interface Database {
           id: string
           email: string
           dedicated_email: string | null
+          gmail_access_token: string | null
+          gmail_refresh_token: string | null
+          gmail_email: string | null
+          gmail_history_id: string | null
+          gmail_watch_expiration: string | null
           created_at: string
         }
         Insert: {
           id: string
           email: string
           dedicated_email?: string | null
+          gmail_access_token?: string | null
+          gmail_refresh_token?: string | null
+          gmail_email?: string | null
+          gmail_history_id?: string | null
+          gmail_watch_expiration?: string | null
           created_at?: string
         }
         Update: {
           id?: string
           email?: string
           dedicated_email?: string | null
+          gmail_access_token?: string | null
+          gmail_refresh_token?: string | null
+          gmail_email?: string | null
+          gmail_history_id?: string | null
+          gmail_watch_expiration?: string | null
           created_at?: string
         }
         Relationships: []
