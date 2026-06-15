@@ -3,6 +3,10 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import NavBar from '@/components/NavBar'
 import SettingsClient from './SettingsClient'
+import type { User } from '@supabase/supabase-js'
+
+// DEV BYPASS: テスト用固定ユーザー
+const DEV_EMAIL = 'a3171245@gmail.com'
 
 export default async function SettingsPage({
   searchParams,
@@ -11,11 +15,34 @@ export default async function SettingsPage({
 }) {
   const authClient = await createClient()
   const {
-    data: { user },
+    data: { user: sessionUser },
   } = await authClient.auth.getUser()
+
+  const supabaseAdmin = createAdminClient()
+
+  // DEV BYPASS: セッションがなければダミーユーザーにフォールバック
+  let user: User | null = sessionUser
+  if (!user) {
+    const { data: devRecord } = await supabaseAdmin
+      .from('users')
+      .select('id, email')
+      .eq('email', DEV_EMAIL)
+      .maybeSingle()
+    if (devRecord) {
+      user = {
+        id: devRecord.id,
+        email: devRecord.email,
+        app_metadata: {},
+        user_metadata: {},
+        aud: 'authenticated',
+        created_at: new Date().toISOString(),
+      } as User
+    }
+  }
+
   if (!user) redirect('/')
 
-  const supabase = createAdminClient()
+  const supabase = supabaseAdmin
   const { data: profile } = await supabase
     .from('users')
     .select(
