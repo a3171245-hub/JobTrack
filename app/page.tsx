@@ -62,7 +62,17 @@ export default function LandingPage() {
     const supabase = createClient()
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        scopes: [
+          'https://www.googleapis.com/auth/gmail.readonly',
+          'https://www.googleapis.com/auth/gmail.modify',
+        ].join(' '),
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
     })
   }
 
