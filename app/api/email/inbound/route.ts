@@ -44,12 +44,9 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createAdminClient()
-  console.log('[DEBUG] supabase url:', process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0, 30), 'key exists:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
 
   // Strip display name: "Name <addr@domain>" → "addr@domain"
-  console.log('[DEBUG] raw to:', to)
   const toAddress = (to.match(/<([^>]+)>/) ?? [, to])[1]!.toLowerCase().trim()
-  console.log('[DEBUG] toAddress:', toAddress)
 
   // Use .eq() (not .ilike()) — email addresses with @ can confuse PostgREST URL parsing
   const { data: userRecord, error: lookupError } = await supabase
@@ -57,7 +54,6 @@ export async function POST(request: NextRequest) {
     .select('id')
     .eq('dedicated_email', toAddress)
     .maybeSingle()
-  console.log('[DEBUG] userRecord:', userRecord, 'lookupError:', lookupError)
 
   if (lookupError) {
     console.error('[email/inbound] user lookup failed:', lookupError)
