@@ -1,12 +1,11 @@
-import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import NavBar from '@/components/NavBar'
 import SettingsClient from './SettingsClient'
 import type { User } from '@supabase/supabase-js'
 
-// DEV BYPASS: テスト用固定ユーザー
-const DEV_EMAIL = 'a3171245@gmail.com'
+// DEV BYPASS: 固定ダミーユーザーID
+const DEV_USER_ID = 'f64e9d5e-0cf4-4496-bc25-90b9e58fa2c8'
 
 export default async function SettingsPage({
   searchParams,
@@ -18,36 +17,20 @@ export default async function SettingsPage({
     data: { user: sessionUser },
   } = await authClient.auth.getUser()
 
-  const supabaseAdmin = createAdminClient()
-
-  // DEV BYPASS: セッションがなければダミーユーザーにフォールバック
-  let user: User | null = sessionUser
-  if (!user) {
-    const { data: devRecord } = await supabaseAdmin
-      .from('users')
-      .select('id, email')
-      .eq('email', DEV_EMAIL)
-      .maybeSingle()
-    if (devRecord) {
-      user = {
-        id: devRecord.id,
-        email: devRecord.email,
-        app_metadata: {},
-        user_metadata: {},
-        aud: 'authenticated',
-        created_at: new Date().toISOString(),
-      } as User
-    }
+  // DEV BYPASS: セッションがなければ固定IDのダミーユーザーにフォールバック
+  const user: User = sessionUser ?? {
+    id: DEV_USER_ID,
+    email: 'a3171245@gmail.com',
+    app_metadata: {},
+    user_metadata: {},
+    aud: 'authenticated',
+    created_at: new Date().toISOString(),
   }
 
-  if (!user) redirect('/')
-
-  const supabase = supabaseAdmin
+  const supabase = createAdminClient()
   const { data: profile } = await supabase
     .from('users')
-    .select(
-      'dedicated_email, gmail_email, gmail_watch_expiration'
-    )
+    .select('dedicated_email, gmail_email, gmail_watch_expiration')
     .eq('id', user.id)
     .maybeSingle()
 

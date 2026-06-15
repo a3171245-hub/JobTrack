@@ -1,15 +1,27 @@
-import { redirect } from 'next/navigation'
 import NavBar from '@/components/NavBar'
 import CalendarView from '@/components/CalendarView'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import type { User } from '@supabase/supabase-js'
+
+// DEV BYPASS: 固定ダミーユーザーID
+const DEV_USER_ID = 'f64e9d5e-0cf4-4496-bc25-90b9e58fa2c8'
 
 export default async function CalendarPage() {
   const authClient = await createClient()
   const {
-    data: { user },
+    data: { user: sessionUser },
   } = await authClient.auth.getUser()
-  if (!user) redirect('/')
+
+  // DEV BYPASS: セッションがなければ固定IDのダミーユーザーにフォールバック
+  const user: User = sessionUser ?? {
+    id: DEV_USER_ID,
+    email: 'a3171245@gmail.com',
+    app_metadata: {},
+    user_metadata: {},
+    aud: 'authenticated',
+    created_at: new Date().toISOString(),
+  }
 
   const supabase = createAdminClient()
 
