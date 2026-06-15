@@ -92,6 +92,14 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
+            {process.env.NODE_ENV === 'development' && (
+              <a
+                href="/api/dev/login"
+                className="text-xs border border-white/20 rounded-lg px-3 h-9 flex items-center text-white/60 hover:text-white hover:border-white/40 hover:bg-white/10 transition-all"
+              >
+                開発用ログイン
+              </a>
+            )}
             <Button
               onClick={handleGoogleLogin}
               disabled={loading}
