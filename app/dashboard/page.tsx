@@ -1,29 +1,10 @@
 import { redirect } from 'next/navigation'
-import dynamic from 'next/dynamic'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import NavBar from '@/components/NavBar'
-import CompanyTable from '@/components/CompanyTable'
-import AddApplicationDialog from '@/components/AddApplicationDialog'
-import TodayUpdates from '@/components/TodayUpdates'
+import DashboardShell from './DashboardShell'
 import type { UpdateRecord } from '@/contexts/DashboardContext'
 import type { ApplicationStatus } from '@/types/database'
-
-// DashboardProvider を ssr:false で読み込む
-// → サーバー/クライアントのタイムゾーン差による Hydration エラー (#418) を回避
-const DashboardProvider = dynamic(
-  () => import('@/contexts/DashboardContext').then((m) => m.DashboardProvider),
-  {
-    ssr: false,
-    loading: () => (
-      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8">
-        <div className="h-28 bg-white rounded-2xl animate-pulse mb-6" />
-        <div className="h-10 w-48 bg-white rounded-xl animate-pulse mb-4" />
-        <div className="h-80 bg-white rounded-2xl animate-pulse" />
-      </main>
-    ),
-  }
-)
 
 export default async function DashboardPage() {
   const authClient = await createClient()
@@ -94,30 +75,14 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* NavBar はSSR対象（即時表示）*/}
+      {/* NavBar はSSRで即時表示 */}
       <NavBar user={user} dedicatedEmail={profile?.dedicated_email ?? null} />
 
-      {/* DashboardProvider 以下は CSR のみ。Hydration エラーを根本回避 */}
-      <DashboardProvider
-        initialApplications={applications}
+      {/* DashboardProvider 以下は CSR のみ（DashboardShell 内で ssr:false）*/}
+      <DashboardShell
+        applications={applications}
         initialTodayUpdates={initialTodayUpdates}
-      >
-        <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 animate-fade-in">
-          <TodayUpdates />
-
-          <div className="flex items-center justify-between mb-5 mt-8">
-            <div className="flex items-baseline gap-3">
-              <h1 className="text-xl font-bold text-slate-900">選考管理</h1>
-              <span className="text-sm text-slate-500">
-                {applications.length} 社
-              </span>
-            </div>
-            <AddApplicationDialog />
-          </div>
-
-          <CompanyTable />
-        </main>
-      </DashboardProvider>
+      />
     </div>
   )
 }
