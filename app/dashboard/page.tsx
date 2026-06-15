@@ -51,12 +51,10 @@ export default async function DashboardPage() {
   let dedicatedEmail = rawProfile?.dedicated_email ?? null
   if (!dedicatedEmail) {
     dedicatedEmail = `${user.id.slice(0, 8)}@jobtrack.jp`
-    supabase
+    void supabase
       .from('users')
       .update({ dedicated_email: dedicatedEmail })
       .eq('id', user.id)
-      .then(() => {})
-      .catch(console.error)
   }
 
   const rawLogs =
