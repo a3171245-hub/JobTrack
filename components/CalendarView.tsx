@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, memo } from 'react'
 import {
   format,
   isSameDay,
@@ -30,6 +30,7 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
+import PremiumModal from '@/components/PremiumModal'
 
 interface CalendarApp {
   id: string
@@ -284,7 +285,7 @@ function EventDetailModal({
 }
 
 // ── DnD Sub-components ──────────────────────────────────────
-function DraggableChip({
+const DraggableChip = memo(function DraggableChip({
   event,
   onEventClick,
 }: {
@@ -312,7 +313,7 @@ function DraggableChip({
       <span className="break-words">{event.title}</span>
     </div>
   )
-}
+})
 
 function DroppableDay({
   date,
@@ -351,6 +352,7 @@ export default function CalendarView({ applications }: { applications: CalendarA
   const [showAddModal, setShowAddModal] = useState(false)
   const [detailEvent, setDetailEvent] = useState<DayEvent | null>(null)
   const [draggingEvent, setDraggingEvent] = useState<DayEvent | null>(null)
+  const [showPremiumModal, setShowPremiumModal] = useState(false)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
@@ -363,6 +365,92 @@ export default function CalendarView({ applications }: { applications: CalendarA
     setManualEvents(loadManualEvents())
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [])
+
+  // イベント一覧をメモ化（applications・manualEventsが変わらない限り再計算しない）
+  const allEvents = useMemo<DayEvent[]>(() => {
+    const events: DayEvent[] = []
+
+    for (const app of applications) {
+      if (app.interview_date) {
+        events.push({
+          id: `interview-${app.id}`,
+          title: app.company_name,
+          type: 'interview',
+          date: new Date(app.interview_date),
+          application_id: app.id,
+          is_manual: false,
+        })
+      }
+      if (app.event_date) {
+        events.push({
+          id: `event-${app.id}`,
+          title: app.company_name,
+          type: 'event',
+          date: new Date(app.event_date),
+          application_id: app.id,
+          is_manual: false,
+        })
+      }
+      if (app.test_date) {
+        events.push({
+          id: `test-${app.id}`,
+          title: app.company_name,
+          type: 'test',
+          date: new Date(app.test_date),
+          application_id: app.id,
+          is_manual: false,
+        })
+      }
+      if (app.es_deadline) {
+        events.push({
+          id: `deadline-${app.id}`,
+          title: app.company_name,
+          type: 'deadline',
+          date: new Date(app.es_deadline),
+          application_id: app.id,
+          is_manual: false,
+        })
+      }
+      if (app.gd_date) {
+        events.push({
+          id: `gd-${app.id}`,
+          title: app.company_name,
+          type: 'gd',
+          date: new Date(app.gd_date),
+          application_id: app.id,
+          is_manual: false,
+        })
+      }
+    }
+
+    for (const ev of manualEvents) {
+      events.push({
+        id: ev.id,
+        title: ev.title,
+        type: ev.type,
+        date: parseISO(ev.date),
+        is_manual: true,
+        memo: ev.memo,
+      })
+    }
+
+    return events
+  }, [applications, manualEvents])
+
+  // フィルター・検索適用済みイベントをメモ化
+  const visibleEvents = useMemo(() => {
+    const isAllActive = activeFilters.includes('all')
+    return allEvents.filter((e) => {
+      const matchesFilter =
+        isAllActive ||
+        (e.type !== 'other' && activeFilters.includes(e.type as FilterOption)) ||
+        (e.type === 'other' && isAllActive)
+      const matchesSearch =
+        !searchQuery ||
+        e.title.toLowerCase().includes(searchQuery.toLowerCase())
+      return matchesFilter && matchesSearch
+    })
+  }, [allEvents, activeFilters, searchQuery])
 
   function handleDragStart(event: DragStartEvent) {
     const found = manualEvents.find((e) => e.id === event.active.id)
@@ -398,86 +486,7 @@ export default function CalendarView({ applications }: { applications: CalendarA
     )
   }
 
-  // イベント一覧を構築（application由来）
-  const allEvents: DayEvent[] = []
-
-  for (const app of applications) {
-    if (app.interview_date) {
-      allEvents.push({
-        id: `interview-${app.id}`,
-        title: app.company_name,
-        type: 'interview',
-        date: new Date(app.interview_date),
-        application_id: app.id,
-        is_manual: false,
-      })
-    }
-    if (app.event_date) {
-      allEvents.push({
-        id: `event-${app.id}`,
-        title: app.company_name,
-        type: 'event',
-        date: new Date(app.event_date),
-        application_id: app.id,
-        is_manual: false,
-      })
-    }
-    if (app.test_date) {
-      allEvents.push({
-        id: `test-${app.id}`,
-        title: app.company_name,
-        type: 'test',
-        date: new Date(app.test_date),
-        application_id: app.id,
-        is_manual: false,
-      })
-    }
-    if (app.es_deadline) {
-      allEvents.push({
-        id: `deadline-${app.id}`,
-        title: app.company_name,
-        type: 'deadline',
-        date: new Date(app.es_deadline),
-        application_id: app.id,
-        is_manual: false,
-      })
-    }
-    if (app.gd_date) {
-      allEvents.push({
-        id: `gd-${app.id}`,
-        title: app.company_name,
-        type: 'gd',
-        date: new Date(app.gd_date),
-        application_id: app.id,
-        is_manual: false,
-      })
-    }
-  }
-
-  // 手動イベントを追加
-  for (const ev of manualEvents) {
-    allEvents.push({
-      id: ev.id,
-      title: ev.title,
-      type: ev.type,
-      date: parseISO(ev.date),
-      is_manual: true,
-      memo: ev.memo,
-    })
-  }
-
-  // フィルター・検索
   const isAllActive = activeFilters.includes('all')
-  const visibleEvents = allEvents.filter((e) => {
-    const matchesFilter =
-      isAllActive ||
-      (e.type !== 'other' && activeFilters.includes(e.type as FilterOption)) ||
-      (e.type === 'other' && isAllActive)
-    const matchesSearch =
-      !searchQuery ||
-      e.title.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchesFilter && matchesSearch
-  })
 
   function toggleFilter(f: FilterOption) {
     if (f === 'all') { setActiveFilters(['all']); return }
@@ -579,10 +588,17 @@ export default function CalendarView({ applications }: { applications: CalendarA
           {FILTER_OPTIONS.map(({ value, label }) => {
             const isActive = value === 'all' ? isAllActive : activeFilters.includes(value)
             const cfg = value !== 'all' ? EVENT_CONFIG[value as EventType] : null
+            const isPremium = value === 'event'
             return (
               <button
                 key={value}
-                onClick={() => toggleFilter(value)}
+                onClick={() => {
+                  if (isPremium) {
+                    setShowPremiumModal(true)
+                    return
+                  }
+                  toggleFilter(value)
+                }}
                 className={[
                   'h-9 px-3.5 rounded-xl text-sm font-medium border transition-all',
                   isActive
@@ -593,6 +609,9 @@ export default function CalendarView({ applications }: { applications: CalendarA
                 ].join(' ')}
               >
                 {label}
+                {isPremium && (
+                  <span className="ml-1.5 text-xs text-amber-600 font-medium">✦</span>
+                )}
               </button>
             )
           })}
@@ -822,6 +841,9 @@ export default function CalendarView({ applications }: { applications: CalendarA
           onClose={() => setDetailEvent(null)}
           onDelete={handleDeleteManualEvent}
         />
+      )}
+      {showPremiumModal && (
+        <PremiumModal onClose={() => setShowPremiumModal(false)} />
       )}
     </div>
   )

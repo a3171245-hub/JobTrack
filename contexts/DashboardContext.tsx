@@ -101,6 +101,8 @@ export function DashboardProvider({
       overlayRef.current[id] = newStatus
       writeOverlay(overlayRef.current)
 
+      toast.success(`${target.company_name} のステータスを更新しました`)
+
       // Supabaseへ永続化。成功したらオーバーレイから外す
       updateApplicationStatus(id, newStatus)
         .then(() => {
@@ -108,10 +110,14 @@ export function DashboardProvider({
           writeOverlay(overlayRef.current)
         })
         .catch(() => {
-          toast.error('保存に失敗しました（変更は端末に保持されます）')
+          // 保存失敗時: UIを元のステータスにロールバック
+          setApplications((prev) =>
+            prev.map((a) => (a.id === id ? { ...a, status: fromStatus } : a))
+          )
+          delete overlayRef.current[id]
+          writeOverlay(overlayRef.current)
+          toast.error(`${target.company_name} の保存に失敗しました`)
         })
-
-      toast.success(`${target.company_name} のステータスを更新しました`)
     },
     [applications]
   )
