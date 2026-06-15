@@ -65,6 +65,7 @@ export default function InlineStatusBadge({
         <Select
           value={status}
           onValueChange={(val) => {
+            console.log('badge clicked', applicationId, val)
             if (!val) return
             if (val === 'event') {
               setEditing(false)

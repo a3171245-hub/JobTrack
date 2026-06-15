@@ -85,6 +85,7 @@ export function DashboardProvider({
 
   const updateStatus = useCallback(
     async (id: string, newStatus: ApplicationStatus) => {
+      console.log('updateStatus called:', id, newStatus)
       const target = applications.find((a) => a.id === id)
       if (!target || target.status === newStatus) return
 
@@ -111,27 +112,35 @@ export function DashboardProvider({
 
       toast.success(`${target.company_name} のステータスを更新しました`)
 
-      // ブラウザクライアントでセッション確認してから永続化
+      // ブラウザクライアントで認証確認してから永続化
       try {
         const supabase = createClient()
-        const { data: { session } } = await supabase.auth.getSession()
-        console.log('[DashboardContext] session user:', session?.user?.id)
-        console.log('[DashboardContext] updating app:', id, '→', newStatus)
+        // getUser() はサーバーに検証リクエストを送るので getSession() より確実
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        console.log('[DashboardContext] auth user:', user?.id, authError?.message)
 
-        if (!session?.user?.id) {
+        if (!user) {
           throw new Error('no active session')
         }
+
+        console.log('[DashboardContext] updating app:', id, '→', newStatus, 'user:', user.id)
 
         const { data, error } = await supabase
           .from('applications')
           .update({ status: newStatus, updated_at: new Date().toISOString() })
           .eq('id', id)
-          .eq('user_id', session.user.id)
+          .eq('user_id', user.id)
           .select()
 
         console.log('[DashboardContext] update result:', data, error)
 
         if (error) throw error
+
+        // 0行更新 = RLS またはIDが不一致（サイレント失敗を検知）
+        if (!data || data.length === 0) {
+          console.warn('[DashboardContext] 0 rows updated — check RLS or user_id mismatch', { id, userId: user.id })
+          throw new Error('update matched 0 rows')
+        }
 
         // 保存成功 → オーバーレイを解除
         delete overlayRef.current[id]
