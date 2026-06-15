@@ -39,7 +39,7 @@ export default async function MailPage() {
   const companyMap = Object.fromEntries(apps.map((a) => [a.id, a.company_name]))
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0f1117]">
       <NavBar user={user} />
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 animate-fade-in">
         <div className="mb-6">

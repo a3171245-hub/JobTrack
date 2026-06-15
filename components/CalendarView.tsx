@@ -602,10 +602,8 @@ export default function CalendarView({ applications }: { applications: CalendarA
                 className={[
                   'h-9 px-3.5 rounded-xl text-sm font-medium border transition-all',
                   isActive
-                    ? cfg
-                      ? `${cfg.chipClass} border-current`
-                      : 'bg-slate-800 text-white border-slate-800'
-                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50',
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-600/20'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700',
                 ].join(' ')}
               >
                 {label}
@@ -661,7 +659,7 @@ export default function CalendarView({ applications }: { applications: CalendarA
                 const numberClass = isSelected
                   ? 'bg-indigo-600 text-white font-bold shadow-sm'
                   : isCurrentDay
-                  ? 'bg-indigo-100 text-indigo-700 font-bold ring-1 ring-indigo-200'
+                  ? 'bg-indigo-600 text-white font-bold shadow-md shadow-indigo-600/30'
                   : !inMonth
                   ? 'text-slate-300'
                   : isSun

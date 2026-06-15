@@ -58,7 +58,7 @@ export default function DashboardShell({
       initialApplications={applications}
       initialTodayUpdates={initialTodayUpdates}
     >
-      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 animate-fade-in">
+      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 animate-fade-in bg-gray-50 dark:bg-transparent min-h-screen">
         <TodayUpdates />
 
         <div className="flex items-center justify-between mb-5 mt-8">

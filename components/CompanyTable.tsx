@@ -238,20 +238,20 @@ function TableBody({
     <div className="bg-white dark:bg-slate-900/80 rounded-2xl border border-slate-200 dark:border-slate-700/60 overflow-hidden shadow-sm transition-colors">
       <table className="w-full text-sm">
         <thead>
-          <tr className="bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700/60">
-            <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-wide w-[240px]">
+          <tr className="bg-gray-100 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700/60">
+            <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider w-[240px]">
               企業名
             </th>
-            <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-wide w-[160px]">
+            <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider w-[160px]">
               ステータス
             </th>
-            <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-wide hidden md:table-cell">
+            <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider hidden md:table-cell">
               最終メール
             </th>
-            <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-wide hidden lg:table-cell w-[170px]">
+            <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider hidden lg:table-cell w-[170px]">
               面接日程
             </th>
-            <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-wide hidden xl:table-cell w-[120px]">
+            <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider hidden xl:table-cell w-[120px]">
               ES締切
             </th>
             <th className="px-5 py-3.5 w-[100px]" />
@@ -266,8 +266,8 @@ function TableBody({
                 className={cn(
                   'group transition-all duration-150 border-l-[3px] border-l-transparent hover:border-l-indigo-500',
                   deadlineSoon
-                    ? 'bg-rose-50/50 dark:bg-rose-950/10 hover:bg-rose-50 dark:hover:bg-rose-950/20'
-                    : 'hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20'
+                    ? 'bg-rose-50/60 dark:bg-rose-950/10 hover:bg-rose-50 dark:hover:bg-rose-950/20'
+                    : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/20'
                 )}
               >
                 <td className="px-5 py-4">

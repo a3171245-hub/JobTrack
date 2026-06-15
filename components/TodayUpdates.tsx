@@ -26,7 +26,7 @@ export default function TodayUpdates() {
   const totalCount = todayUpdates.length + todayDeadlines.length
 
   return (
-    <div className="bg-white dark:bg-slate-900/80 rounded-2xl ring-1 ring-slate-900/5 dark:ring-slate-700/60 shadow-sm overflow-hidden animate-fade-in-up transition-colors">
+    <div className="bg-white dark:bg-slate-900/80 rounded-2xl ring-1 ring-slate-900/5 dark:ring-slate-700/60 shadow-sm overflow-hidden animate-fade-in-up transition-colors border-l-4 border-l-indigo-500">
       <div className="flex items-center gap-2.5 px-5 py-3.5 bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-950/40 dark:to-violet-950/40 border-b border-indigo-100/70 dark:border-indigo-800/30">
         <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-sm">
           <Sparkles className="w-3.5 h-3.5" />

@@ -74,7 +74,7 @@ export default async function DashboardPage() {
     .filter(Boolean) as UpdateRecord[]
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0f1117]">
       {/* NavBar はSSRで即時表示 */}
       <NavBar user={user} dedicatedEmail={profile?.dedicated_email ?? null} />
 

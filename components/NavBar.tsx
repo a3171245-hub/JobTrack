@@ -49,15 +49,17 @@ export default function NavBar({
   }
 
   return (
-    <header className="bg-white/85 dark:bg-slate-950/85 backdrop-blur-md border-b border-slate-100 dark:border-slate-800/80 sticky top-0 z-50 transition-colors duration-200">
+    <header className="bg-white/85 dark:bg-slate-950/85 backdrop-blur-md border-b border-slate-100 dark:border-slate-800/80 sticky top-0 z-50 transition-colors duration-200 drop-shadow-sm">
       <div className="relative max-w-[1400px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
 
         {/* ロゴ */}
         <Link href="/dashboard" className="flex items-center gap-2 flex-shrink-0 group">
-          <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-sm group-hover:shadow-indigo-500/30 transition-shadow">
+          <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/25 group-hover:shadow-indigo-500/40 transition-shadow">
             <Inbox className="h-4 w-4" />
           </span>
-          <span className="font-bold text-slate-900 dark:text-slate-100">JobTrack</span>
+          <span className="font-black text-lg bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-400 bg-clip-text text-transparent">
+            JobTrack
+          </span>
         </Link>
 
         {/* ナビ（中央） */}

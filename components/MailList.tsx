@@ -166,8 +166,16 @@ export default function MailList({
             <button
               key={log.id}
               onClick={() => open(log)}
-              className={`group w-full text-left bg-white rounded-xl ring-1 ring-slate-900/5 shadow-sm border-l-4 px-4 py-3.5 flex items-start gap-3 hover:shadow-md hover:-translate-y-px transition-all ${
-                isRead ? 'border-l-transparent' : 'border-l-indigo-500'
+              className={`group w-full text-left bg-white rounded-xl ring-1 ring-slate-900/5 shadow-sm border-l-4 px-4 py-3.5 flex items-start gap-3 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 ${
+                isRead
+                  ? 'border-l-slate-200'
+                  : log.email_type === 'selection'
+                  ? 'border-l-blue-500'
+                  : log.email_type === 'event'
+                  ? 'border-l-green-500'
+                  : log.email_type === 'manual_update'
+                  ? 'border-l-violet-500'
+                  : 'border-l-slate-400'
               }`}
             >
               {/* 未読ドット */}
