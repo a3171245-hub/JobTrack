@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createAdminClient()
+  console.log("[DEBUG] supabase url:", process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0,30), "key exists:", !!process.env.SUPABASE_SERVICE_ROLE_KEY)
 
   // Find user by dedicated_email (exact match on the To address)
   // Strip any display name, e.g. "Name <addr@domain>" → "addr@domain"
