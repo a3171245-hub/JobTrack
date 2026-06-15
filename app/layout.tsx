@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'JobTrack - 就活メール自動追跡サービス',
   description:
-    '専用メールアドレスを就活サイトに登録するだけで、企業からの選考メールをAIが自動解析し、カンバンボードで選考状況を一元管理できます。',
+    '専用メールアドレスを就活サイトに登録するだけで、企業からの選考メールをAIが自動解析し、選考状況を一元管理できます。',
   openGraph: {
     title: 'JobTrack - 就活メール自動追跡サービス',
     description: '企業からのメールをAIで自動解析してカンバン管理',
@@ -34,9 +34,18 @@ export default function RootLayout({
   return (
     <html
       lang="ja"
+      suppressHydrationWarning
       className={`${notoSansJP.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-slate-50">
+      <head>
+        {/* ダークモードのフラッシュを防ぐ — React hydration より前に実行 */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||(t===null&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark');}}catch(e){}})()`,
+          }}
+        />
+      </head>
+      <body className="min-h-full flex flex-col bg-background">
         {children}
         <Toaster richColors position="top-right" />
       </body>

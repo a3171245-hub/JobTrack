@@ -26,14 +26,14 @@ export default function TodayUpdates() {
   const totalCount = todayUpdates.length + todayDeadlines.length
 
   return (
-    <div className="bg-white rounded-2xl ring-1 ring-slate-900/5 shadow-sm overflow-hidden animate-fade-in-up">
-      <div className="flex items-center gap-2 px-5 py-4 bg-gradient-to-r from-indigo-50 to-violet-50 border-b border-indigo-100/70">
+    <div className="bg-white dark:bg-slate-900/80 rounded-2xl ring-1 ring-slate-900/5 dark:ring-slate-700/60 shadow-sm overflow-hidden animate-fade-in-up transition-colors">
+      <div className="flex items-center gap-2.5 px-5 py-3.5 bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-950/40 dark:to-violet-950/40 border-b border-indigo-100/70 dark:border-indigo-800/30">
         <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-sm">
-          <Sparkles className="w-4 h-4" />
+          <Sparkles className="w-3.5 h-3.5" />
         </span>
-        <span className="text-sm font-bold text-slate-800">今日の更新</span>
+        <span className="text-sm font-bold text-slate-800 dark:text-slate-200">今日の更新</span>
         {totalCount > 0 && (
-          <span className="text-xs font-medium text-indigo-600 bg-white/70 rounded-full px-2 py-0.5">
+          <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400 bg-white/70 dark:bg-indigo-950/60 rounded-full px-2 py-0.5 border border-indigo-100 dark:border-indigo-800/50">
             {totalCount}件
           </span>
         )}
@@ -41,7 +41,7 @@ export default function TodayUpdates() {
 
       <div className="px-5 py-4">
         {totalCount === 0 ? (
-          <p className="text-sm text-slate-400 py-2">今日の更新はまだありません</p>
+          <p className="text-sm text-slate-400 dark:text-slate-600 py-1.5">今日の更新はまだありません</p>
         ) : (
           <ol className="relative">
             {todayDeadlines.map((app, i) => (
@@ -50,10 +50,10 @@ export default function TodayUpdates() {
                 last={i === todayDeadlines.length - 1 && todayUpdates.length === 0}
                 dotClass="bg-rose-500"
               >
-                <span className="font-semibold text-slate-800 truncate max-w-[180px]">
+                <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[180px]">
                   {app.company_name}
                 </span>
-                <span className="flex items-center gap-1 text-xs font-medium text-rose-600">
+                <span className="flex items-center gap-1 text-xs font-medium text-rose-600 dark:text-rose-400">
                   <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
                   ES締切 今日まで
                 </span>
@@ -66,21 +66,21 @@ export default function TodayUpdates() {
                 dotClass={update.action ? 'bg-emerald-500' : 'bg-indigo-500'}
                 time={format(new Date(update.timestamp), 'HH:mm', { locale: ja })}
               >
-                <span className="font-semibold text-slate-800 truncate max-w-[180px]">
+                <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[180px]">
                   {update.companyName}
                 </span>
                 {update.action ? (
-                  <span className="flex items-center gap-1 text-xs font-medium text-emerald-600">
+                  <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
                     <PlusCircle className="w-3.5 h-3.5" />
                     {update.action}
                   </span>
                 ) : (
                   <span className="flex items-center gap-1.5 text-xs">
-                    <span className="text-slate-400">
+                    <span className="text-slate-400 dark:text-slate-500">
                       {STATUS_LABELS[update.fromStatus!]}
                     </span>
-                    <ArrowRight className="w-3 h-3 text-slate-300 flex-shrink-0" />
-                    <span className="font-medium text-indigo-600">
+                    <ArrowRight className="w-3 h-3 text-slate-300 dark:text-slate-600 flex-shrink-0" />
+                    <span className="font-medium text-indigo-600 dark:text-indigo-400">
                       {STATUS_LABELS[update.toStatus!]}
                     </span>
                   </span>
@@ -108,18 +108,16 @@ function TimelineRow({
   return (
     <li className="relative flex items-center gap-3 pl-6 py-2">
       {!last && (
-        <span className="absolute left-[5px] top-1/2 bottom-0 w-px bg-slate-200" />
+        <span className="absolute left-[5px] top-1/2 bottom-0 w-px bg-slate-200 dark:bg-slate-700" />
       )}
       <span className="absolute left-0 top-1/2 -translate-y-1/2">
-        <span
-          className={`block w-2.5 h-2.5 rounded-full ring-4 ring-white ${dotClass}`}
-        />
+        <span className={`block w-2.5 h-2.5 rounded-full ring-4 ring-white dark:ring-slate-900 ${dotClass}`} />
       </span>
       <div className="flex items-center gap-2.5 flex-wrap flex-1 min-w-0">
         {children}
       </div>
       {time && (
-        <span className="text-xs text-slate-400 flex-shrink-0 tabular-nums">
+        <span className="text-xs text-slate-400 dark:text-slate-600 flex-shrink-0 tabular-nums">
           {time}
         </span>
       )}

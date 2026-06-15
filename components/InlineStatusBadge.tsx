@@ -71,7 +71,7 @@ export default function InlineStatusBadge({
         }}
         onBlur={() => setEditing(false)}
         onClick={(e) => e.stopPropagation()}
-        className="h-7 w-32 text-xs border border-slate-300 rounded-md bg-white px-1.5 focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer"
+        className="h-7 w-32 text-xs border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 dark:focus:ring-indigo-500 cursor-pointer transition-colors"
       >
         {ALL_STATUSES.map((s) => (
           <option key={s} value={s}>

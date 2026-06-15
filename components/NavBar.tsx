@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
+import ThemeToggle from '@/components/ThemeToggle'
 import { Inbox, LayoutDashboard, CalendarDays, Mail, LogOut, Check } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 
@@ -48,18 +49,19 @@ export default function NavBar({
   }
 
   return (
-    <header className="bg-white border-b border-slate-100 sticky top-0 z-50">
+    <header className="bg-white/85 dark:bg-slate-950/85 backdrop-blur-md border-b border-slate-100 dark:border-slate-800/80 sticky top-0 z-50 transition-colors duration-200">
       <div className="relative max-w-[1400px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
-        {/* ロゴ（左） */}
-        <Link href="/dashboard" className="flex items-center gap-2 flex-shrink-0">
-          <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-sm">
+
+        {/* ロゴ */}
+        <Link href="/dashboard" className="flex items-center gap-2 flex-shrink-0 group">
+          <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-sm group-hover:shadow-indigo-500/30 transition-shadow">
             <Inbox className="h-4 w-4" />
           </span>
-          <span className="font-bold text-slate-900">JobTrack</span>
+          <span className="font-bold text-slate-900 dark:text-slate-100">JobTrack</span>
         </Link>
 
         {/* ナビ（中央） */}
-        <nav className="hidden sm:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
+        <nav className="hidden sm:flex items-center gap-0.5 absolute left-1/2 -translate-x-1/2">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(href + '/')
             return (
@@ -68,8 +70,8 @@ export default function NavBar({
                 href={href}
                 className={`flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-sm font-medium transition-colors ${
                   active
-                    ? 'bg-indigo-50 text-indigo-700'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -79,18 +81,18 @@ export default function NavBar({
           })}
         </nav>
 
-        {/* ユーザー（右） */}
-        <div className="flex items-center gap-3 flex-shrink-0">
-          {/* 専用メールアドレス（Mailgun） */}
+        {/* 右側 */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* 専用メールアドレス */}
           {dedicatedEmail && (
-            <div className="relative hidden md:block">
+            <div className="hidden md:block">
               <button
                 onClick={copyDedicatedEmail}
-                className="text-xs font-mono text-slate-400 hover:text-indigo-600 transition-colors"
+                className="text-xs font-mono text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                 title="クリックしてコピー"
               >
                 {copiedDedicated ? (
-                  <span className="flex items-center gap-1 text-green-600">
+                  <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
                     <Check className="w-3 h-3" />
                     コピーしました
                   </span>
@@ -101,28 +103,30 @@ export default function NavBar({
             </div>
           )}
 
-          {/* ユーザーメールアドレス（クリックでコピー） */}
+          {/* ユーザーメール */}
           <div className="relative hidden sm:block">
             <button
               onClick={copyUserEmail}
-              className="text-sm text-slate-500 hover:text-indigo-600 transition-colors"
+              className="text-sm text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
               title="クリックしてコピー"
             >
               {user.email}
             </button>
             {copiedUser && (
-              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2.5 py-1 rounded-lg whitespace-nowrap pointer-events-none shadow-lg z-10">
+              <div className="absolute -bottom-9 left-1/2 -translate-x-1/2 bg-slate-800 dark:bg-slate-700 text-white text-xs px-2.5 py-1 rounded-lg whitespace-nowrap pointer-events-none shadow-lg z-10">
                 コピーしました
-                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-800 rotate-45" />
+                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-800 dark:bg-slate-700 rotate-45" />
               </div>
             )}
           </div>
+
+          <ThemeToggle />
 
           <Button
             variant="ghost"
             size="sm"
             onClick={handleSignOut}
-            className="gap-1.5 text-slate-600"
+            className="gap-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             <LogOut className="w-4 h-4" />
             <span className="hidden sm:inline">ログアウト</span>

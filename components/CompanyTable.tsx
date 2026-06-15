@@ -36,7 +36,6 @@ const AVATAR_COLORS = [
   'bg-gradient-to-br from-rose-500 to-pink-500',
 ]
 
-// ES締切が近い（過去でなく3日以内）かどうか
 function isDeadlineSoon(deadline: string | null | undefined): boolean {
   if (!deadline) return false
   const d = new Date(deadline)
@@ -53,7 +52,7 @@ const STATUS_FILTER_OPTIONS: { value: ApplicationStatus | 'all'; label: string }
 ]
 
 function EsDeadlineCell({ deadline }: { deadline: string | null }) {
-  if (!deadline) return <span className="text-slate-300 text-xs">—</span>
+  if (!deadline) return <span className="text-slate-300 dark:text-slate-700 text-xs">—</span>
 
   const deadlineDate = new Date(deadline)
   const today = new Date()
@@ -62,37 +61,32 @@ function EsDeadlineCell({ deadline }: { deadline: string | null }) {
   const daysLeft = Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
   const dateStr = format(new Date(deadline), 'M/d', { locale: ja })
 
-  if (daysLeft < 0) {
-    return <span className="text-xs text-slate-400">{dateStr}</span>
-  }
+  if (daysLeft < 0) return <span className="text-xs text-slate-400 dark:text-slate-600">{dateStr}</span>
 
   if (daysLeft === 0) {
     return (
-      <span className="text-xs font-medium text-red-600">
-        {dateStr} <span className="text-red-400">今日</span>
+      <span className="text-xs font-medium text-red-600 dark:text-red-400">
+        {dateStr} <span className="text-red-400 dark:text-red-500">今日</span>
       </span>
     )
   }
-
   if (daysLeft <= 3) {
     return (
-      <span className="text-xs font-medium text-red-600">
-        {dateStr} <span className="text-red-400">{daysLeft}日後</span>
+      <span className="text-xs font-medium text-red-600 dark:text-red-400">
+        {dateStr} <span className="text-red-400 dark:text-red-500">{daysLeft}日後</span>
       </span>
     )
   }
-
   if (daysLeft <= 7) {
     return (
-      <span className="text-xs font-medium text-amber-600">
-        {dateStr} <span className="text-amber-400">{daysLeft}日後</span>
+      <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+        {dateStr} <span className="text-amber-400 dark:text-amber-500">{daysLeft}日後</span>
       </span>
     )
   }
-
   return (
-    <span className="text-xs text-slate-500">
-      {dateStr} <span className="text-slate-400">{daysLeft}日後</span>
+    <span className="text-xs text-slate-500 dark:text-slate-500">
+      {dateStr} <span className="text-slate-400 dark:text-slate-600">{daysLeft}日後</span>
     </span>
   )
 }
@@ -101,9 +95,7 @@ function CompanyAvatar({ name }: { name: string }) {
   const initial = name.replace(/株式会社|合同会社|有限会社/g, '').trim()[0] ?? '?'
   const color = AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]
   return (
-    <div
-      className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-sm flex-shrink-0 ${color}`}
-    >
+    <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-sm flex-shrink-0 ${color}`}>
       {initial}
     </div>
   )
@@ -122,7 +114,6 @@ export default function CompanyTable() {
     toast.success('削除しました')
   }
 
-  // フィルター適用（event除外、検索・ステータスで絞り込み）
   const filteredApps = applications
     .filter((a) => a.status !== 'event')
     .filter((a) => statusFilter === 'all' || a.status === statusFilter)
@@ -132,7 +123,6 @@ export default function CompanyTable() {
         a.company_name.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
-  // お祈りフィルター中は全件をメインに表示
   const filteringRejected = statusFilter === 'rejected'
   const mainApps = filteringRejected
     ? filteredApps
@@ -141,22 +131,21 @@ export default function CompanyTable() {
     ? []
     : filteredApps.filter((a) => a.status === 'rejected')
 
-  // 企業が1社もない場合：温かみのある空状態
   if (applications.filter((a) => a.status !== 'event').length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center text-center py-20 px-6 bg-white rounded-2xl ring-1 ring-slate-900/5 shadow-sm animate-fade-in-up">
-        <div className="relative mb-6">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center">
-            <Building2 className="w-9 h-9 text-indigo-500" />
+      <div className="flex flex-col items-center justify-center text-center py-24 px-6 bg-white dark:bg-slate-900/80 rounded-2xl ring-1 ring-slate-900/5 dark:ring-slate-700/60 shadow-sm animate-fade-in-up transition-colors">
+        <div className="relative mb-6 animate-float">
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 dark:from-indigo-950/60 dark:to-violet-950/60 flex items-center justify-center">
+            <Building2 className="w-9 h-9 text-indigo-500 dark:text-indigo-400" />
           </div>
           <span className="absolute -right-2 -bottom-2 w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-md">
             <Rocket className="w-4 h-4 text-white" />
           </span>
         </div>
-        <h3 className="text-lg font-bold text-slate-900 mb-1.5">
+        <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">
           最初の企業を追加しよう
         </h3>
-        <p className="text-sm text-slate-500 max-w-xs mb-6 leading-relaxed">
+        <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs mb-7 leading-relaxed">
           応募した企業を登録すると、選考ステータスやES締切、面接日程をここで一元管理できます。
         </p>
         <AddApplicationDialog />
@@ -175,12 +164,12 @@ export default function CompanyTable() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="企業名で検索..."
-            className="w-full h-9 pl-9 pr-8 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-colors"
+            className="w-full h-9 pl-9 pr-8 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-colors"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -190,18 +179,16 @@ export default function CompanyTable() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as ApplicationStatus | 'all')}
-          className="h-9 pl-3 pr-8 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-colors appearance-none cursor-pointer"
+          className="h-9 pl-3 pr-8 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-colors appearance-none cursor-pointer"
           style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', paddingRight: '28px' }}
         >
           {STATUS_FILTER_OPTIONS.map(({ value, label }) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
+            <option key={value} value={value}>{label}</option>
           ))}
         </select>
 
         {(searchQuery || statusFilter !== 'all') && (
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-slate-400 dark:text-slate-600">
             {mainApps.length + collapsedRejectedApps.length}件
           </span>
         )}
@@ -213,14 +200,13 @@ export default function CompanyTable() {
         <div>
           <button
             onClick={() => setShowRejected((v) => !v)}
-            className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition-colors mt-4 mb-3"
+            className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors mt-4 mb-3"
           >
             {showRejected ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             お祈り一覧を見る（{collapsedRejectedApps.length}社）
           </button>
-
           {showRejected && (
-            <div className="border-t border-slate-100 pt-4">
+            <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
               <TableBody apps={collapsedRejectedApps} onDelete={handleDelete} showAffiliate />
             </div>
           )}
@@ -241,7 +227,7 @@ function TableBody({
 }) {
   if (apps.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white rounded-2xl ring-1 ring-slate-900/5">
+      <div className="flex flex-col items-center justify-center py-20 text-slate-400 dark:text-slate-600 bg-white dark:bg-slate-900/80 rounded-2xl ring-1 ring-slate-900/5 dark:ring-slate-700/60 transition-colors">
         <Building2 className="w-10 h-10 mb-3 opacity-40" />
         <p className="text-sm">条件に一致する企業がありません</p>
       </div>
@@ -249,107 +235,109 @@ function TableBody({
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+    <div className="bg-white dark:bg-slate-900/80 rounded-2xl border border-slate-200 dark:border-slate-700/60 overflow-hidden shadow-sm transition-colors">
       <table className="w-full text-sm">
         <thead>
-          <tr className="bg-slate-50 border-b border-slate-200">
-            <th className="text-left px-5 py-3.5 font-semibold text-slate-600 w-[240px]">
+          <tr className="bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700/60">
+            <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-wide w-[240px]">
               企業名
             </th>
-            <th className="text-left px-5 py-3.5 font-semibold text-slate-600 w-[160px]">
+            <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-wide w-[160px]">
               ステータス
             </th>
-            <th className="text-left px-5 py-3.5 font-semibold text-slate-600 hidden md:table-cell">
+            <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-wide hidden md:table-cell">
               最終メール
             </th>
-            <th className="text-left px-5 py-3.5 font-semibold text-slate-600 hidden lg:table-cell w-[170px]">
+            <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-wide hidden lg:table-cell w-[170px]">
               面接日程
             </th>
-            <th className="text-left px-5 py-3.5 font-semibold text-slate-600 hidden xl:table-cell w-[120px]">
+            <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-wide hidden xl:table-cell w-[120px]">
               ES締切
             </th>
             <th className="px-5 py-3.5 w-[100px]" />
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
           {apps.map((app) => {
             const deadlineSoon = isDeadlineSoon(app.es_deadline)
             return (
-            <tr
-              key={app.id}
-              className={cn(
-                'group transition-colors border-l-2 border-l-transparent hover:border-l-indigo-500',
-                deadlineSoon ? 'bg-rose-50/60 hover:bg-rose-50' : 'hover:bg-indigo-50/40'
-              )}
-            >
-              <td className="px-5 py-4">
-                <div className="flex items-center gap-3">
-                  <CompanyAvatar name={app.company_name} />
-                  <span className="font-semibold text-slate-900 truncate max-w-[160px]">
-                    {app.company_name}
-                  </span>
-                </div>
-              </td>
-              <td className="px-5 py-4">
-                <InlineStatusBadge applicationId={app.id} status={app.status} />
-              </td>
-              <td className="px-5 py-4 hidden md:table-cell">
-                <div>
-                  <p className="text-slate-700 truncate max-w-[280px]">
-                    {app.latest_email_subject ?? '—'}
-                  </p>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {format(new Date(app.updated_at), 'M/d HH:mm', { locale: ja })}
-                  </p>
-                </div>
-              </td>
-              <td className="px-5 py-4 hidden lg:table-cell">
-                {app.interview_date ? (
-                  <div className="flex items-center gap-1.5 text-indigo-700 bg-indigo-50 rounded-lg px-2.5 py-1.5 w-fit">
-                    <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span className="text-xs font-medium">
-                      {format(new Date(app.interview_date), 'M/d(E) HH:mm', { locale: ja })}
+              <tr
+                key={app.id}
+                className={cn(
+                  'group transition-all duration-150 border-l-[3px] border-l-transparent hover:border-l-indigo-500',
+                  deadlineSoon
+                    ? 'bg-rose-50/50 dark:bg-rose-950/10 hover:bg-rose-50 dark:hover:bg-rose-950/20'
+                    : 'hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20'
+                )}
+              >
+                <td className="px-5 py-4">
+                  <div className="flex items-center gap-3">
+                    <CompanyAvatar name={app.company_name} />
+                    <span className="font-semibold text-slate-900 dark:text-slate-100 truncate max-w-[160px]">
+                      {app.company_name}
                     </span>
                   </div>
-                ) : (
-                  <span className="text-slate-300 text-xs">—</span>
-                )}
-              </td>
-              <td className="px-5 py-4 hidden xl:table-cell">
-                <EsDeadlineCell deadline={app.es_deadline ?? null} />
-              </td>
-              <td className="px-5 py-4">
-                <div className="flex items-center gap-1 justify-end">
-                  {showAffiliate && (
-                    <a
-                      href={AFFILIATE_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-indigo-600 hover:underline flex items-center gap-0.5 mr-1"
-                      title="エージェントに相談"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
+                </td>
+                <td className="px-5 py-4">
+                  <InlineStatusBadge applicationId={app.id} status={app.status} />
+                </td>
+                <td className="px-5 py-4 hidden md:table-cell">
+                  <div>
+                    <p className="text-slate-700 dark:text-slate-300 truncate max-w-[280px]">
+                      {app.latest_email_subject ?? '—'}
+                    </p>
+                    <p className="text-xs text-slate-400 dark:text-slate-600 mt-0.5">
+                      {format(new Date(app.updated_at), 'M/d HH:mm', { locale: ja })}
+                    </p>
+                  </div>
+                </td>
+                <td className="px-5 py-4 hidden lg:table-cell">
+                  {app.interview_date ? (
+                    <div className="flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 rounded-lg px-2.5 py-1.5 w-fit">
+                      <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span className="text-xs font-medium">
+                        {format(new Date(app.interview_date), 'M/d(E) HH:mm', { locale: ja })}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-slate-300 dark:text-slate-700 text-xs">—</span>
                   )}
-                  <button
-                    onClick={() => onDelete(app.id, app.company_name)}
-                    className="text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100 p-1 rounded"
-                    aria-label="削除"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                  <Link
-                    href={`/dashboard/company/${app.id}`}
-                    className={cn(
-                      buttonVariants({ variant: 'ghost', size: 'sm' }),
-                      'opacity-0 group-hover:opacity-100 transition-opacity gap-0.5 px-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50'
+                </td>
+                <td className="px-5 py-4 hidden xl:table-cell">
+                  <EsDeadlineCell deadline={app.es_deadline ?? null} />
+                </td>
+                <td className="px-5 py-4">
+                  <div className="flex items-center gap-1 justify-end">
+                    {showAffiliate && (
+                      <a
+                        href={AFFILIATE_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5 mr-1"
+                        title="エージェントに相談"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
                     )}
-                  >
-                    詳細 <ChevronRight className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              </td>
-            </tr>
+                    <button
+                      onClick={() => onDelete(app.id, app.company_name)}
+                      className="text-slate-300 dark:text-slate-700 hover:text-rose-500 dark:hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                      aria-label="削除"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                    <Link
+                      href={`/dashboard/company/${app.id}`}
+                      className={cn(
+                        buttonVariants({ variant: 'ghost', size: 'sm' }),
+                        'opacity-0 group-hover:opacity-100 transition-opacity gap-0.5 px-2 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40'
+                      )}
+                    >
+                      詳細 <ChevronRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </td>
+              </tr>
             )
           })}
         </tbody>
