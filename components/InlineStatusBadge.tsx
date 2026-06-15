@@ -2,12 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Badge } from '@/components/ui/badge'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from '@/components/ui/select'
 import { STATUS_LABELS, STATUS_COLORS, KANBAN_COLUMNS } from '@/lib/constants'
 import type { ApplicationStatus } from '@/types/database'
 import { useDashboard } from '@/contexts/DashboardContext'
@@ -18,6 +12,8 @@ interface InlineStatusBadgeProps {
   status: ApplicationStatus
 }
 
+const ALL_STATUSES: ApplicationStatus[] = [...KANBAN_COLUMNS, 'event' as ApplicationStatus]
+
 export default function InlineStatusBadge({
   applicationId,
   status,
@@ -25,17 +21,17 @@ export default function InlineStatusBadge({
   const [editing, setEditing] = useState(false)
   const [showPremium, setShowPremium] = useState(false)
   const { updateStatus } = useDashboard()
-  const containerRef = useRef<HTMLDivElement>(null)
+  const selectRef = useRef<HTMLSelectElement>(null)
 
+  // editing=true になった直後にネイティブドロップダウンを開く
   useEffect(() => {
-    if (!editing) return
-    function handleClickOutside(e: MouseEvent) {
-      if (!containerRef.current?.contains(e.target as Node)) {
-        setEditing(false)
-      }
+    if (!editing || !selectRef.current) return
+    try {
+      // showPicker() はユーザー操作直後のみ呼べる（Chrome/Firefox/Safari 対応）
+      ;(selectRef.current as HTMLSelectElement & { showPicker?: () => void }).showPicker?.()
+    } catch {
+      selectRef.current.focus()
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [editing])
 
   if (!editing) {
@@ -57,45 +53,33 @@ export default function InlineStatusBadge({
     )
   }
 
-  const allStatuses: ApplicationStatus[] = [...KANBAN_COLUMNS, 'event']
-
   return (
     <>
-      <div ref={containerRef} onClick={(e) => e.stopPropagation()}>
-        <Select
-          value={status}
-          onValueChange={(val) => {
-            console.log('badge clicked', applicationId, val)
-            if (!val) return
-            if (val === 'event') {
-              setEditing(false)
-              setShowPremium(true)
-              return
-            }
-            updateStatus(applicationId, val as ApplicationStatus)
+      <select
+        ref={selectRef}
+        defaultValue={status}
+        onChange={(e) => {
+          const val = e.target.value
+          console.log('badge clicked', applicationId, val)
+          if (val === 'event') {
             setEditing(false)
-          }}
-          open
-        >
-          <SelectTrigger className="h-7 text-xs w-32">
-            <span className="flex-1 text-left text-xs">{STATUS_LABELS[status]}</span>
-          </SelectTrigger>
-          <SelectContent>
-            {allStatuses.map((s) => (
-              <SelectItem key={s} value={s} className="text-xs">
-                {s === 'event' ? (
-                  <span className="flex items-center gap-1.5">
-                    {STATUS_LABELS[s]}
-                    <span className="text-amber-600 font-medium">Premium</span>
-                  </span>
-                ) : (
-                  STATUS_LABELS[s]
-                )}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+            setShowPremium(true)
+            return
+          }
+          updateStatus(applicationId, val as ApplicationStatus)
+          setEditing(false)
+        }}
+        onBlur={() => setEditing(false)}
+        onClick={(e) => e.stopPropagation()}
+        className="h-7 w-32 text-xs border border-slate-300 rounded-md bg-white px-1.5 focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer"
+      >
+        {ALL_STATUSES.map((s) => (
+          <option key={s} value={s}>
+            {STATUS_LABELS[s]}
+            {s === 'event' ? ' ✦' : ''}
+          </option>
+        ))}
+      </select>
       {showPremium && <PremiumModal onClose={() => setShowPremium(false)} />}
     </>
   )
