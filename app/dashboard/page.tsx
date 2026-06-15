@@ -44,8 +44,20 @@ export default async function DashboardPage() {
       ? applicationsResult.value.data
       : []
 
-  const profile =
+  const rawProfile =
     profileResult.status === 'fulfilled' ? profileResult.value.data : null
+
+  // Auto-generate dedicated email for new users (fire-and-forget)
+  let dedicatedEmail = rawProfile?.dedicated_email ?? null
+  if (!dedicatedEmail) {
+    dedicatedEmail = `${user.id.slice(0, 8)}@jobtrack.jp`
+    supabase
+      .from('users')
+      .update({ dedicated_email: dedicatedEmail })
+      .eq('id', user.id)
+      .then(() => {})
+      .catch(console.error)
+  }
 
   const rawLogs =
     logsResult.status === 'fulfilled' && logsResult.value.data
@@ -76,12 +88,13 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#0f1117]">
       {/* NavBar はSSRで即時表示 */}
-      <NavBar user={user} dedicatedEmail={profile?.dedicated_email ?? null} />
+      <NavBar user={user} dedicatedEmail={dedicatedEmail} />
 
       {/* DashboardProvider 以下は CSR のみ（DashboardShell 内で ssr:false）*/}
       <DashboardShell
         applications={applications}
         initialTodayUpdates={initialTodayUpdates}
+        dedicatedEmail={dedicatedEmail}
       />
     </div>
   )

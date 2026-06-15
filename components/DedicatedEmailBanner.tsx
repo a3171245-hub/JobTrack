@@ -21,13 +21,13 @@ export default function DedicatedEmailBanner({
   }
 
   return (
-    <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm">
-      <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
-        <Mail className="w-4 h-4 text-indigo-600" />
+    <div className="flex items-center gap-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 rounded-xl px-4 py-3 shadow-sm transition-colors">
+      <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-950/60 rounded-lg flex items-center justify-center flex-shrink-0">
+        <Mail className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-slate-400 mb-0.5">メール自動取込用アドレス</p>
-        <code className="text-sm font-mono text-slate-800 truncate block">
+        <p className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">メール自動取込用アドレス</p>
+        <code className="text-sm font-mono text-slate-800 dark:text-slate-200 truncate block">
           {email ?? '生成中...'}
         </code>
       </div>

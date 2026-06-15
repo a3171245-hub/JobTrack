@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -106,6 +106,41 @@ export default function CompanyTable() {
   const [showRejected, setShowRejected] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'all'>('all')
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [highlightedIndex, setHighlightedIndex] = useState(-1)
+
+  const suggestions = useMemo(() => {
+    if (!searchQuery.trim()) return []
+    const q = searchQuery.toLowerCase()
+    return [...new Set(applications.map((a) => a.company_name))]
+      .filter((n) => n.toLowerCase().includes(q))
+      .slice(0, 8)
+  }, [searchQuery, applications])
+
+  useEffect(() => { setHighlightedIndex(-1) }, [suggestions])
+
+  function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      if (!showSuggestions && suggestions.length > 0) { setShowSuggestions(true); return }
+      setHighlightedIndex((i) => Math.min(i + 1, suggestions.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setHighlightedIndex((i) => Math.max(i - 1, -1))
+    } else if (e.key === 'Tab' && showSuggestions && highlightedIndex >= 0) {
+      e.preventDefault()
+      setSearchQuery(suggestions[highlightedIndex])
+      setShowSuggestions(false)
+      setHighlightedIndex(-1)
+    } else if (e.key === 'Enter') {
+      if (showSuggestions && highlightedIndex >= 0) setSearchQuery(suggestions[highlightedIndex])
+      setShowSuggestions(false)
+      setHighlightedIndex(-1)
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false)
+      setHighlightedIndex(-1)
+    }
+  }
 
   async function handleDelete(id: string, name: string) {
     if (!confirm(`${name} を削除しますか？`)) return
@@ -162,17 +197,43 @@ export default function CompanyTable() {
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true) }}
+            onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true) }}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+            onKeyDown={handleSearchKeyDown}
             placeholder="企業名で検索..."
             className="w-full h-9 pl-9 pr-8 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-colors"
           />
           {searchQuery && (
             <button
-              onClick={() => setSearchQuery('')}
+              onClick={() => { setSearchQuery(''); setShowSuggestions(false) }}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
+          )}
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden">
+              {suggestions.map((name, i) => (
+                <button
+                  key={name}
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    setSearchQuery(name)
+                    setShowSuggestions(false)
+                    setHighlightedIndex(-1)
+                  }}
+                  className={cn(
+                    'w-full text-left px-3 py-2.5 text-sm transition-colors',
+                    i === highlightedIndex
+                      ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300'
+                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                  )}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
           )}
         </div>
 

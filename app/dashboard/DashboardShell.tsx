@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 import TodayUpdates from '@/components/TodayUpdates'
 import CompanyTable from '@/components/CompanyTable'
 import AddApplicationDialog from '@/components/AddApplicationDialog'
+import DedicatedEmailBanner from '@/components/DedicatedEmailBanner'
 import type { Database } from '@/types/database'
 import type { UpdateRecord } from '@/contexts/DashboardContext'
 
@@ -49,9 +50,11 @@ const DashboardProvider = dynamic(
 export default function DashboardShell({
   applications,
   initialTodayUpdates,
+  dedicatedEmail,
 }: {
   applications: Application[]
   initialTodayUpdates: UpdateRecord[]
+  dedicatedEmail?: string | null
 }) {
   return (
     <DashboardProvider
@@ -60,6 +63,15 @@ export default function DashboardShell({
     >
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 animate-fade-in bg-gray-50 dark:bg-transparent min-h-screen">
         <TodayUpdates />
+
+        {dedicatedEmail && (
+          <div className="mt-6">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-wider mb-2">
+              あなたの専用アドレス
+            </p>
+            <DedicatedEmailBanner email={dedicatedEmail} />
+          </div>
+        )}
 
         <div className="flex items-center justify-between mb-5 mt-8">
           <div className="flex items-baseline gap-3">
