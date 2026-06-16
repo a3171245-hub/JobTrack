@@ -1,6 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+import OpenAI from 'openai'
 
 export interface EmailAnalysis {
   company_name: string
@@ -15,10 +13,7 @@ export async function analyzeEmail(
   body: string,
   fromEmail: string
 ): Promise<EmailAnalysis> {
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
-    generationConfig: { responseMimeType: 'application/json' },
-  })
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
   const prompt = `以下は日本の就活生に届いた企業からのメールです。
 JSON形式で情報を抽出してください。
@@ -38,7 +33,12 @@ ${body.slice(0, 3000)}
 
 必ずJSON形式のみで返答してください。`
 
-  const result = await model.generateContent(prompt)
-  const text = result.response.text()
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4.1-mini',
+    response_format: { type: 'json_object' },
+    messages: [{ role: 'user', content: prompt }],
+  })
+
+  const text = response.choices[0].message.content ?? '{}'
   return JSON.parse(text) as EmailAnalysis
 }
