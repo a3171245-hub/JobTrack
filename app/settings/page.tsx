@@ -30,10 +30,11 @@ export default async function SettingsPage({
   const supabase = createAdminClient()
   const { data: profile } = await supabase
     .from('users')
-    .select('dedicated_email')
+    .select('dedicated_email, plan')
     .eq('id', user.id)
     .maybeSingle()
 
+  const plan = (profile?.plan ?? 'free') as 'free' | 'premium'
   const { success, error } = await searchParams
 
   return (
@@ -45,6 +46,7 @@ export default async function SettingsPage({
         </h1>
         <SettingsClient
           dedicatedEmail={profile?.dedicated_email ?? null}
+          plan={plan}
           successMessage={success}
           errorMessage={error}
         />

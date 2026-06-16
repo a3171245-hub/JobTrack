@@ -6,6 +6,8 @@ import type { User } from '@supabase/supabase-js'
 
 const DEV_USER_ID = 'f64e9d5e-0cf4-4496-bc25-90b9e58fa2c8'
 
+const FREE_MAIL_LIMIT = 20
+
 export default async function MailPage() {
   const authClient = await createClient()
   const { data: { user: sessionUser } } = await authClient.auth.getUser()
@@ -21,23 +23,38 @@ export default async function MailPage() {
 
   const supabase = createAdminClient()
 
-  const [logsResult, appsResult] = await Promise.allSettled([
+  const [logsResult, appsResult, profileResult] = await Promise.allSettled([
     supabase
       .from('email_logs')
       .select('*')
       .eq('user_id', user.id)
       .neq('email_type', 'manual_update')
-      .order('received_at', { ascending: false }),
+      .order('received_at', { ascending: false })
+      .limit(FREE_MAIL_LIMIT + 1),
     supabase
       .from('applications')
       .select('id, company_name, interview_date, event_date')
       .eq('user_id', user.id),
+    supabase
+      .from('users')
+      .select('plan')
+      .eq('id', user.id)
+      .maybeSingle(),
   ])
 
-  const logs =
+  const plan = (
+    profileResult.status === 'fulfilled'
+      ? (profileResult.value.data?.plan as 'free' | 'premium' | null) ?? 'free'
+      : 'free'
+  ) as 'free' | 'premium'
+
+  const rawLogs =
     logsResult.status === 'fulfilled' && logsResult.value.data
       ? logsResult.value.data
       : []
+
+  const freeLimitHit = plan === 'free' && rawLogs.length > FREE_MAIL_LIMIT
+  const logs = plan === 'free' ? rawLogs.slice(0, FREE_MAIL_LIMIT) : rawLogs
 
   const apps =
     appsResult.status === 'fulfilled' && appsResult.value.data
@@ -64,6 +81,7 @@ export default async function MailPage() {
           companyMap={companyMap}
           appDateMap={appDateMap}
           userId={user.id}
+          freeLimitHit={freeLimitHit}
         />
       </main>
     </div>

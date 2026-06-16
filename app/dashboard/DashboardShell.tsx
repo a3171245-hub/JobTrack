@@ -51,10 +51,12 @@ export default function DashboardShell({
   applications,
   initialTodayUpdates,
   dedicatedEmail,
+  plan = 'free',
 }: {
   applications: Application[]
   initialTodayUpdates: UpdateRecord[]
   dedicatedEmail?: string | null
+  plan?: 'free' | 'premium'
 }) {
   return (
     <DashboardProvider
@@ -80,10 +82,25 @@ export default function DashboardShell({
               {applications.length} 社
             </span>
           </div>
-          <AddApplicationDialog />
+          <AddApplicationDialog plan={plan} applicationsCount={applications.length} />
         </div>
 
         <CompanyTable />
+
+        {plan === 'free' && (
+          <div className="mt-8 mb-4">
+            <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 text-center">
+              <p className="text-xs text-slate-400 dark:text-slate-500 mb-3">広告</p>
+              {/* <!-- AdSense --> */}
+              <div
+                className="h-24 bg-slate-100 dark:bg-slate-800/40 rounded-xl flex items-center justify-center"
+                data-ad-slot="dashboard-banner"
+              >
+                <span className="text-xs text-slate-400 dark:text-slate-600">広告スペース（AdSense）</span>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </DashboardProvider>
   )

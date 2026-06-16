@@ -198,11 +198,13 @@ export default function MailList({
   companyMap,
   appDateMap = {},
   userId = '',
+  freeLimitHit = false,
 }: {
   logs: EmailLog[]
   companyMap: Record<string, string>
   appDateMap?: Record<string, { interview_date: string | null; event_date: string | null }>
   userId?: string
+  freeLimitHit?: boolean
 }) {
   const [selectedLog, setSelectedLog] = useState<EmailLog | null>(null)
   const [readIds, setReadIds] = useState<Set<string>>(new Set())
@@ -223,12 +225,12 @@ export default function MailList({
 
   if (logs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-center bg-white/5 border border-white/10 rounded-2xl">
-        <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mb-4">
-          <Mail className="w-7 h-7 text-indigo-300" />
+      <div className="flex flex-col items-center justify-center py-24 text-center bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl">
+        <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-white/10 flex items-center justify-center mb-4">
+          <Mail className="w-7 h-7 text-indigo-400 dark:text-indigo-300" />
         </div>
-        <p className="font-semibold text-white mb-1">受信メールはまだありません</p>
-        <p className="text-sm text-indigo-200/60 max-w-xs">
+        <p className="font-semibold text-slate-900 dark:text-white mb-1">受信メールはまだありません</p>
+        <p className="text-sm text-slate-500 dark:text-indigo-200/60 max-w-xs">
           専用メールアドレスを就活サイトに登録すると、ここに届いたメールが表示されます。
         </p>
       </div>
@@ -237,6 +239,11 @@ export default function MailList({
 
   return (
     <>
+      {freeLimitHit && (
+        <div className="mb-3 px-4 py-2.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 rounded-xl text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+          フリープランでは最新20件まで表示されます。プレミアムプランで制限が解除されます。
+        </div>
+      )}
       <div className="space-y-2.5">
         {logs.map((log) => {
           const companyName = log.application_id
@@ -248,16 +255,16 @@ export default function MailList({
             <button
               key={log.id}
               onClick={() => open(log)}
-              className={`group w-full text-left bg-white/8 hover:bg-white/12 border border-white/10 hover:border-white/20 rounded-xl px-4 py-3.5 flex items-start gap-3 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 border-l-4 ${
+              className={`group w-full text-left bg-white dark:bg-white/8 hover:bg-slate-50 dark:hover:bg-white/12 border border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 rounded-xl px-4 py-3.5 flex items-start gap-3 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 border-l-4 ${
                 isRead
-                  ? 'border-l-white/20'
+                  ? 'border-l-slate-200 dark:border-l-white/20'
                   : log.email_type === 'selection'
                   ? 'border-l-indigo-400'
                   : log.email_type === 'event'
                   ? 'border-l-emerald-400'
                   : log.email_type === 'manual_update'
                   ? 'border-l-violet-400'
-                  : 'border-l-white/30'
+                  : 'border-l-slate-300 dark:border-l-white/30'
               }`}
             >
               <span className="mt-1.5 flex-shrink-0">
@@ -268,14 +275,14 @@ export default function MailList({
                   <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${typeCfg.className}`}>
                     {typeCfg.label}
                   </span>
-                  <span className="text-sm font-semibold text-white truncate max-w-[200px]">
+                  <span className="text-sm font-semibold text-slate-900 dark:text-white truncate max-w-[200px]">
                     {companyName}
                   </span>
-                  <span className="ml-auto text-xs text-indigo-300/70 whitespace-nowrap">
+                  <span className="ml-auto text-xs text-slate-400 dark:text-indigo-300/70 whitespace-nowrap">
                     {format(new Date(log.received_at), 'M/d HH:mm', { locale: ja })}
                   </span>
                 </div>
-                <p className={`text-sm truncate ${isRead ? 'text-white/50' : 'text-white/90 font-medium'}`}>
+                <p className={`text-sm truncate ${isRead ? 'text-slate-400 dark:text-white/50' : 'text-slate-800 dark:text-white/90 font-medium'}`}>
                   {log.subject ?? '（件名なし）'}
                 </p>
               </div>

@@ -36,7 +36,7 @@ export default async function DashboardPage() {
         .order('updated_at', { ascending: false }),
       supabase
         .from('users')
-        .select('dedicated_email')
+        .select('dedicated_email, plan')
         .eq('id', user.id)
         .maybeSingle(),
       supabase
@@ -68,6 +68,8 @@ export default async function DashboardPage() {
       .update({ dedicated_email: dedicatedEmail })
       .eq('id', user.id)
   }
+
+  const plan = (rawProfile?.plan ?? 'free') as 'free' | 'premium'
 
   const rawLogs =
     logsResult.status === 'fulfilled' && logsResult.value.data
@@ -104,6 +106,7 @@ export default async function DashboardPage() {
         applications={applications}
         initialTodayUpdates={initialTodayUpdates}
         dedicatedEmail={dedicatedEmail}
+        plan={plan}
       />
     </div>
   )

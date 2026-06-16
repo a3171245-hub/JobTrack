@@ -30,6 +30,7 @@ export interface Database {
           id: string
           email: string
           dedicated_email: string | null
+          plan: 'free' | 'premium'
           gmail_access_token: string | null
           gmail_refresh_token: string | null
           gmail_email: string | null
@@ -41,6 +42,7 @@ export interface Database {
           id: string
           email: string
           dedicated_email?: string | null
+          plan?: 'free' | 'premium'
           gmail_access_token?: string | null
           gmail_refresh_token?: string | null
           gmail_email?: string | null
@@ -52,6 +54,7 @@ export interface Database {
           id?: string
           email?: string
           dedicated_email?: string | null
+          plan?: 'free' | 'premium'
           gmail_access_token?: string | null
           gmail_refresh_token?: string | null
           gmail_email?: string | null
