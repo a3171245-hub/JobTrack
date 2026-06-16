@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
 
   // Strip display name: "Name <addr@domain>" → "addr@domain"
   const toAddress = (to.match(/<([^>]+)>/) ?? [, to])[1]!.toLowerCase().trim()
+  console.log('[email/inbound] searching dedicated_email:', toAddress)
 
   // Use .eq() (not .ilike()) — email addresses with @ can confuse PostgREST URL parsing
   const { data: userRecord, error: lookupError } = await supabase
@@ -55,13 +56,15 @@ export async function POST(request: NextRequest) {
     .eq('dedicated_email', toAddress)
     .maybeSingle()
 
+  console.log('[email/inbound] userRecord:', userRecord, 'lookupError:', lookupError)
+
   if (lookupError) {
     console.error('[email/inbound] user lookup failed:', lookupError)
     return NextResponse.json({ error: 'DB error' }, { status: 500 })
   }
 
   if (!userRecord) {
-    // Unknown recipient — accept silently so Cloudflare doesn't retry
+    console.warn('[email/inbound] no user found for dedicated_email:', toAddress)
     return NextResponse.json({ ok: true, skipped: 'unknown_recipient' })
   }
 
@@ -107,7 +110,7 @@ export async function POST(request: NextRequest) {
       .eq('id', existingApp.id)
     applicationId = existingApp.id
   } else {
-    const { data: newApp } = await supabase
+    const { data: newApp, error: insertError } = await supabase
       .from('applications')
       .insert({
         user_id: userId,
@@ -119,7 +122,19 @@ export async function POST(request: NextRequest) {
       })
       .select('id')
       .single()
-    applicationId = newApp!.id
+
+    if (insertError || !newApp) {
+      console.error('[email/inbound] application insert failed:', insertError)
+      await supabase.from('email_logs').insert({
+        user_id: userId,
+        subject,
+        body_text: bodyText.slice(0, 10000),
+        email_type: analysis.email_type as 'selection' | 'event' | 'other',
+      })
+      return NextResponse.json({ ok: true, processed: false })
+    }
+
+    applicationId = newApp.id
   }
 
   await supabase.from('email_logs').insert({
