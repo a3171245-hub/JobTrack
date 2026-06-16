@@ -11,6 +11,7 @@
     "watch:push": "bash scripts/watch-and-push.sh"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.2",
     "@base-ui/react": "^1.5.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
