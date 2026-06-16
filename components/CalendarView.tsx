@@ -154,18 +154,18 @@ function AddEventModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6"
+        className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md mx-4 p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
-          <h3 className="font-semibold text-slate-900">予定を追加</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+          <h3 className="font-semibold text-slate-900 dark:text-slate-100">予定を追加</h3>
+          <button onClick={onClose} className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-xs font-semibold text-slate-600 mb-1.5 block">タイトル</label>
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 block">タイトル</label>
             <input
               type="text"
               value={title}
@@ -173,25 +173,25 @@ function AddEventModal({
               placeholder="予定名を入力..."
               required
               autoFocus
-              className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+              className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20"
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-slate-600 mb-1.5 block">日付</label>
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 block">日付</label>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               required
-              className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+              className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20"
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-slate-600 mb-1.5 block">種類</label>
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 block">種類</label>
             <select
               value={type}
               onChange={(e) => setType(e.target.value as ManualEvent['type'])}
-              className="w-full h-10 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 bg-white"
+              className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20"
             >
               <option value="interview">面接</option>
               <option value="gd">GD</option>
@@ -202,22 +202,22 @@ function AddEventModal({
             </select>
           </div>
           <div>
-            <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
-              メモ<span className="font-normal text-slate-400 ml-1">（任意）</span>
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 block">
+              メモ<span className="font-normal text-slate-400 dark:text-slate-500 ml-1">（任意）</span>
             </label>
             <textarea
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
               placeholder="補足情報..."
               rows={3}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm resize-none focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 text-sm resize-none focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20"
             />
           </div>
           <div className="flex gap-2 pt-1">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 h-10 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+              className="flex-1 h-10 rounded-xl border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
             >
               キャンセル
             </button>
@@ -248,7 +248,7 @@ function EventDetailModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6"
+        className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-3">
@@ -256,17 +256,17 @@ function EventDetailModal({
             <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${cfg.chipClass}`}>
               {cfg.label}
             </span>
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-slate-400 dark:text-slate-500">
               {format(event.date, 'M月d日(E)', { locale: ja })}
             </span>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors ml-2 flex-shrink-0">
+          <button onClick={onClose} className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors ml-2 flex-shrink-0">
             <X className="w-5 h-5" />
           </button>
         </div>
-        <h3 className="font-semibold text-slate-900 mb-3">{event.title}</h3>
+        <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-3">{event.title}</h3>
         {event.memo && (
-          <p className="text-sm text-slate-500 whitespace-pre-wrap mb-4 bg-slate-50 rounded-xl p-3">
+          <p className="text-sm text-slate-500 dark:text-slate-400 whitespace-pre-wrap mb-4 bg-slate-50 dark:bg-slate-700 rounded-xl p-3">
             {event.memo}
           </p>
         )}
@@ -335,7 +335,7 @@ function DroppableDay({
       role="button"
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
-      className={`${className} ${isOver ? 'bg-indigo-100/50 ring-2 ring-indigo-300 ring-inset' : ''}`}
+      className={`${className} ${isOver ? 'bg-indigo-100/50 dark:bg-indigo-900/50 ring-2 ring-indigo-300 dark:ring-indigo-600 ring-inset' : ''}`}
     >
       {children}
     </div>
@@ -534,29 +534,29 @@ export default function CalendarView({ applications }: { applications: CalendarA
     <div className="space-y-4">
       {/* 月ナビゲーション */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-slate-900">
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
           {format(currentMonth, 'yyyy年M月', { locale: ja })}
         </h2>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCurrentMonth((m) => (m ? subMonths(m, 1) : m))}
             aria-label="前月"
-            className="w-11 h-11 rounded-xl border border-slate-200 bg-white shadow-sm flex items-center justify-center hover:bg-slate-50 transition-colors"
+            className="w-11 h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
           >
-            <ChevronLeft className="w-5 h-5 text-slate-600" />
+            <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
           </button>
           <button
             onClick={() => setCurrentMonth(startOfMonth(new Date()))}
-            className="h-11 px-4 rounded-xl border border-slate-200 bg-white shadow-sm text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+            className="h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
           >
             今月
           </button>
           <button
             onClick={() => setCurrentMonth((m) => (m ? addMonths(m, 1) : m))}
             aria-label="翌月"
-            className="w-11 h-11 rounded-xl border border-slate-200 bg-white shadow-sm flex items-center justify-center hover:bg-slate-50 transition-colors"
+            className="w-11 h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
           >
-            <ChevronRight className="w-5 h-5 text-slate-600" />
+            <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-300" />
           </button>
         </div>
       </div>
@@ -571,7 +571,7 @@ export default function CalendarView({ applications }: { applications: CalendarA
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="企業名で検索..."
-            className="w-full h-10 pl-9 pr-8 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-colors"
+            className="w-full h-10 pl-9 pr-8 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 dark:focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20 transition-colors"
           />
           {searchQuery && (
             <button
@@ -603,7 +603,7 @@ export default function CalendarView({ applications }: { applications: CalendarA
                   'h-9 px-3.5 rounded-xl text-sm font-medium border transition-all',
                   isActive
                     ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-600/20'
-                    : 'bg-white text-slate-600 border-slate-200 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700',
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-slate-700 hover:border-indigo-200 dark:hover:border-slate-600 hover:text-indigo-700 dark:hover:text-indigo-400',
                 ].join(' ')}
               >
                 {label}
@@ -627,9 +627,9 @@ export default function CalendarView({ applications }: { applications: CalendarA
 
       {/* カレンダーグリッド */}
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
           {/* 曜日ヘッダー */}
-          <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-200">
+          <div className="grid grid-cols-7 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
             {DOW.map((d, i) => (
               <div
                 key={d}
@@ -646,7 +646,7 @@ export default function CalendarView({ applications }: { applications: CalendarA
           {weeks.map((week, wi) => (
             <div
               key={wi}
-              className={`grid grid-cols-7 ${wi < weeks.length - 1 ? 'border-b border-slate-100' : ''}`}
+              className={`grid grid-cols-7 ${wi < weeks.length - 1 ? 'border-b border-slate-100 dark:border-slate-800' : ''}`}
             >
               {week.map((d, di) => {
                 const inMonth = isSameMonth(d, currentMonth)
@@ -661,12 +661,12 @@ export default function CalendarView({ applications }: { applications: CalendarA
                   : isCurrentDay
                   ? 'bg-indigo-600 text-white font-bold shadow-md shadow-indigo-600/30'
                   : !inMonth
-                  ? 'text-slate-300'
+                  ? 'text-slate-300 dark:text-slate-600'
                   : isSun
                   ? 'text-rose-500 font-medium'
                   : isSat
                   ? 'text-indigo-600 font-medium'
-                  : 'text-slate-700 font-medium'
+                  : 'text-slate-700 dark:text-slate-200 font-medium'
 
                 return (
                   <DroppableDay
@@ -674,12 +674,12 @@ export default function CalendarView({ applications }: { applications: CalendarA
                     date={d}
                     onClick={() => setSelectedDay(d)}
                     className={[
-                      'min-h-[104px] p-2 text-left border-l border-slate-100 first:border-l-0 transition-colors select-none cursor-pointer',
+                      'min-h-[104px] p-2 text-left border-l border-slate-100 dark:border-slate-800 first:border-l-0 transition-colors select-none cursor-pointer',
                       isCurrentDay
-                        ? 'bg-indigo-50/40 hover:bg-indigo-50/70'
+                        ? 'bg-indigo-50/40 dark:bg-indigo-900/20 hover:bg-indigo-50/70 dark:hover:bg-indigo-900/30'
                         : inMonth
-                        ? 'hover:bg-slate-50/80'
-                        : 'bg-slate-50/40',
+                        ? 'hover:bg-slate-50/80 dark:hover:bg-slate-800/60'
+                        : 'bg-slate-50/40 dark:bg-slate-800/20',
                     ].join(' ')}
                   >
                     <div className="mb-1.5">
@@ -716,7 +716,7 @@ export default function CalendarView({ applications }: { applications: CalendarA
                         )
                       })}
                       {dayEvents.length > 3 && (
-                        <p className="text-xs text-slate-400 pl-1.5">
+                        <p className="text-xs text-slate-400 dark:text-slate-500 pl-1.5">
                           他{dayEvents.length - 3}件
                         </p>
                       )}
@@ -757,7 +757,7 @@ export default function CalendarView({ applications }: { applications: CalendarA
       {/* 選択日の詳細 */}
       {selectedDay && (
         <div>
-          <h3 className="text-base font-semibold text-slate-800 mb-3">
+          <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100 mb-3">
             {format(selectedDay, 'M月d日(E)のスケジュール', { locale: ja })}
             {(searchQuery || !isAllActive) && (
               <span className="ml-2 text-xs font-normal text-slate-400">
@@ -767,7 +767,7 @@ export default function CalendarView({ applications }: { applications: CalendarA
           </h3>
 
           {selectedEvents.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 bg-white rounded-2xl border border-slate-200 text-slate-400">
+            <div className="flex flex-col items-center justify-center py-10 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500">
               <p className="text-sm">
                 {searchQuery || !isAllActive
                   ? '絞り込み条件に一致する予定がありません'

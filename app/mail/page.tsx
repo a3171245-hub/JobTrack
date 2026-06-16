@@ -50,12 +50,12 @@ export default async function MailPage() {
   )
 
   return (
-    <div className="dark min-h-screen bg-gradient-to-br from-indigo-950 via-[#1e1b4b] to-violet-900">
+    <div className="min-h-screen bg-slate-50 dark:bg-gradient-to-br dark:from-indigo-950 dark:via-[#1e1b4b] dark:to-violet-900">
       <NavBar user={user} />
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 animate-fade-in">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white">受信メール</h1>
-          <p className="text-sm text-indigo-200/70 mt-1">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">受信メール</h1>
+          <p className="text-sm text-slate-500 dark:text-indigo-200/70 mt-1">
             専用アドレスに届いた企業からのメールが一覧で確認できます
           </p>
         </div>

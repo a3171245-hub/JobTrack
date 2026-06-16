@@ -96,7 +96,7 @@ export default async function DashboardPage() {
     .filter(Boolean) as UpdateRecord[]
 
   return (
-    <div className="dark min-h-screen bg-gradient-to-br from-indigo-950 via-[#1e1b4b] to-violet-900">
+    <div className="min-h-screen bg-slate-50 dark:bg-gradient-to-br dark:from-indigo-950 dark:via-[#1e1b4b] dark:to-violet-900">
       <NavBar user={user} dedicatedEmail={dedicatedEmail} />
 
       {/* DashboardProvider 以下は CSR のみ（DashboardShell 内で ssr:false）*/}
