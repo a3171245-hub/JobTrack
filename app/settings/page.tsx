@@ -44,6 +44,7 @@ export default async function SettingsPage({
           設定
         </h1>
         <SettingsClient
+          dedicatedEmail={profile?.dedicated_email ?? null}
           gmailEmail={profile?.gmail_email ?? null}
           gmailWatchExpiration={profile?.gmail_watch_expiration ?? null}
           successMessage={success}
