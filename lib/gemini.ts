@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk'
+import Groq from 'groq-sdk'
 
 export interface EmailAnalysis {
   company_name: string
@@ -13,7 +13,7 @@ export async function analyzeEmail(
   body: string,
   fromEmail: string
 ): Promise<EmailAnalysis> {
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  const client = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
   const prompt = `以下は日本の就活生に届いた企業からのメールです。
 JSON形式で情報を抽出してください。
@@ -33,15 +33,12 @@ ${body.slice(0, 3000)}
 
 必ずJSON形式のみで返答してください。`
 
-  const message = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 512,
+  const completion = await client.chat.completions.create({
+    model: 'llama-3.3-70b-versatile',
+    response_format: { type: 'json_object' },
     messages: [{ role: 'user', content: prompt }],
   })
 
-  const block = message.content[0]
-  const text = block.type === 'text' ? block.text : ''
-  // Strip markdown code fences if present (```json ... ```)
-  const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
-  return JSON.parse(cleaned) as EmailAnalysis
+  const text = completion.choices[0].message.content ?? '{}'
+  return JSON.parse(text) as EmailAnalysis
 }
