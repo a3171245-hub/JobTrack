@@ -46,10 +46,15 @@ export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
 
   // Strip display name: "Name <addr@domain>" → "addr@domain"
-  const toAddress = (to.match(/<([^>]+)>/) ?? [, to])[1]!.toLowerCase().trim()
-  console.log('[email/inbound] searching dedicated_email:', toAddress)
+  const rawTo = to ?? ''
+  const toAddress = (rawTo.match(/<([^>]+)>/) ?? [, rawTo])[1]?.toLowerCase().trim() ?? ''
+  console.log('[email/inbound] to (raw):', rawTo, '→ toAddress:', toAddress)
 
-  // Use .eq() (not .ilike()) — email addresses with @ can confuse PostgREST URL parsing
+  if (!toAddress) {
+    console.warn('[email/inbound] could not extract address from to field')
+    return NextResponse.json({ ok: true, skipped: 'invalid_to' })
+  }
+
   const { data: userRecord, error: lookupError } = await supabase
     .from('users')
     .select('id')
@@ -63,7 +68,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'DB error' }, { status: 500 })
   }
 
-  if (!userRecord) {
+  if (!userRecord?.id) {
     console.warn('[email/inbound] no user found for dedicated_email:', toAddress)
     return NextResponse.json({ ok: true, skipped: 'unknown_recipient' })
   }
@@ -71,12 +76,13 @@ export async function POST(request: NextRequest) {
   const userId = userRecord.id
   const bodyText = emailBody ?? ''
 
-  // Analyze with Gemini
+  // Analyze email content
   let analysis
   try {
     analysis = await analyzeEmail(subject, bodyText, from)
+    console.log('[email/inbound] analysis:', JSON.stringify(analysis))
   } catch (err) {
-    console.error('[email/inbound] Gemini analysis failed:', err)
+    console.error('[email/inbound] AI analysis failed:', err)
     await supabase.from('email_logs').insert({
       user_id: userId,
       subject,
@@ -86,64 +92,74 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, processed: false })
   }
 
-  const appStatus = mapToApplicationStatus(analysis.status, analysis.email_type)
+  // Guard: company_name must be a non-empty string for DB operations
+  const companyName = typeof analysis?.company_name === 'string' && analysis.company_name.trim()
+    ? analysis.company_name.trim()
+    : subject.slice(0, 100)   // fall back to subject if AI returned null/empty
 
-  // Upsert application (match by user_id + company_name)
-  const { data: existingApp } = await supabase
-    .from('applications')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('company_name', analysis.company_name)
-    .maybeSingle()
+  const appStatus = mapToApplicationStatus(analysis?.status ?? 'unknown', analysis?.email_type ?? 'other')
 
-  let applicationId: string
-
-  if (existingApp) {
-    await supabase
+  try {
+    // Upsert application (match by user_id + company_name)
+    const { data: existingApp } = await supabase
       .from('applications')
-      .update({
-        status: appStatus,
-        latest_email_subject: subject,
-        ...(analysis.interview_date ? { interview_date: analysis.interview_date } : {}),
-        ...(analysis.event_date ? { event_date: analysis.event_date } : {}),
-      })
-      .eq('id', existingApp.id)
-    applicationId = existingApp.id
-  } else {
-    const { data: newApp, error: insertError } = await supabase
-      .from('applications')
-      .insert({
-        user_id: userId,
-        company_name: analysis.company_name,
-        status: appStatus,
-        latest_email_subject: subject,
-        interview_date: analysis.interview_date ?? null,
-        event_date: analysis.event_date ?? null,
-      })
       .select('id')
-      .single()
+      .eq('user_id', userId)
+      .eq('company_name', companyName)
+      .maybeSingle()
 
-    if (insertError || !newApp) {
-      console.error('[email/inbound] application insert failed:', insertError)
-      await supabase.from('email_logs').insert({
-        user_id: userId,
-        subject,
-        body_text: bodyText.slice(0, 10000),
-        email_type: analysis.email_type as 'selection' | 'event' | 'other',
-      })
-      return NextResponse.json({ ok: true, processed: false })
+    let applicationId: string
+
+    if (existingApp?.id) {
+      await supabase
+        .from('applications')
+        .update({
+          status: appStatus,
+          latest_email_subject: subject,
+          ...(analysis.interview_date ? { interview_date: analysis.interview_date } : {}),
+          ...(analysis.event_date ? { event_date: analysis.event_date } : {}),
+        })
+        .eq('id', existingApp.id)
+      applicationId = existingApp.id
+    } else {
+      const { data: newApp, error: insertError } = await supabase
+        .from('applications')
+        .insert({
+          user_id: userId,
+          company_name: companyName,
+          status: appStatus,
+          latest_email_subject: subject,
+          interview_date: analysis.interview_date ?? null,
+          event_date: analysis.event_date ?? null,
+        })
+        .select('id')
+        .single()
+
+      if (insertError || !newApp?.id) {
+        console.error('[email/inbound] application insert failed:', insertError)
+        await supabase.from('email_logs').insert({
+          user_id: userId,
+          subject,
+          body_text: bodyText.slice(0, 10000),
+          email_type: (analysis.email_type ?? 'other') as 'selection' | 'event' | 'other',
+        })
+        return NextResponse.json({ ok: true, processed: false })
+      }
+
+      applicationId = newApp.id
     }
 
-    applicationId = newApp.id
+    await supabase.from('email_logs').insert({
+      user_id: userId,
+      application_id: applicationId,
+      subject,
+      body_text: bodyText.slice(0, 10000),
+      email_type: (analysis.email_type ?? 'other') as 'selection' | 'event' | 'other',
+    })
+
+    return NextResponse.json({ ok: true, processed: true })
+  } catch (err) {
+    console.error('[email/inbound] unexpected error during DB write:', err)
+    return NextResponse.json({ error: 'internal error' }, { status: 500 })
   }
-
-  await supabase.from('email_logs').insert({
-    user_id: userId,
-    application_id: applicationId,
-    subject,
-    body_text: bodyText.slice(0, 10000),
-    email_type: analysis.email_type as 'selection' | 'event' | 'other',
-  })
-
-  return NextResponse.json({ ok: true, processed: true })
 }
