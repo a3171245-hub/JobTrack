@@ -10,11 +10,39 @@
  *   JOBTRACK_API_SECRET - /api/email/inbound の認証シークレット
  */
 
+// Maximum raw email size accepted (bytes). Larger emails are silently discarded.
+const MAX_EMAIL_BYTES = 100_000 // 100 KB
+
+/** Basic email address format check */
+function isValidEmail(addr) {
+  return (
+    typeof addr === 'string' &&
+    addr.length > 0 &&
+    addr.length <= 320 &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(addr)
+  )
+}
+
 export default {
   async email(message, env, ctx) {
+    // ── Sender validation ────────────────────────────────────────────
+    if (!isValidEmail(message.from)) {
+      console.warn('[email-handler] invalid sender address, discarding:', message.from)
+      return // silently discard (not throw — Cloudflare would retry on throw)
+    }
+
+    // ── Size guard ───────────────────────────────────────────────────
     // Read raw RFC 2822 email
     const rawEmail = await new Response(message.raw).text()
 
+    if (rawEmail.length > MAX_EMAIL_BYTES) {
+      console.warn(
+        `[email-handler] email too large (${rawEmail.length} bytes), discarding from: ${message.from}`
+      )
+      return
+    }
+
+    // ── Parse ────────────────────────────────────────────────────────
     // Split headers from body on the first blank line
     const sepIdx = rawEmail.indexOf('\r\n\r\n')
     const headersText = sepIdx !== -1 ? rawEmail.slice(0, sepIdx) : rawEmail

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createClient } from '@/lib/supabase/server'
+import { companyInfoSchema, parseBody } from '@/lib/validate'
 
 export const maxDuration = 30
 
@@ -12,10 +13,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const name = req.nextUrl.searchParams.get('name')
-  if (!name) {
-    return NextResponse.json({ error: 'name is required' }, { status: 400 })
-  }
+  const rawName = req.nextUrl.searchParams.get('name')
+  const validation = parseBody(companyInfoSchema, { name: rawName })
+  if (!validation.ok) return validation.response
+
+  const { name } = validation.data
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
   const model = genAI.getGenerativeModel({

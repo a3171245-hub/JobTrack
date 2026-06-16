@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { calendarAddSchema, parseBody } from '@/lib/validate'
 
 export async function POST(request: NextRequest) {
   // Verify session — never trust user_id from request body
@@ -10,17 +11,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  let body: { title?: string; date?: string; type?: string }
+  let rawBody: unknown
   try {
-    body = (await request.json()) as typeof body
+    rawBody = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { title, date, type } = body
-  if (!title || !date || !type) {
-    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-  }
+  const validation = parseBody(calendarAddSchema, rawBody)
+  if (!validation.ok) return validation.response
+
+  const { title, date, type } = validation.data
 
   const supabase = createAdminClient()
   const { error } = await supabase

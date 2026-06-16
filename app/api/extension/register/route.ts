@@ -1,24 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { buildCorsHeaders, corsPreflightResponse } from '@/lib/cors'
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-}
-
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: CORS_HEADERS })
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin')
+  return corsPreflightResponse(origin)
 }
 
 export async function GET(request: NextRequest) {
+  const origin = request.headers.get('origin')
+  const corsHeaders = buildCorsHeaders(origin)
+
   const token = request.nextUrl.searchParams.get('token')
 
   if (!token) {
     return NextResponse.json(
       { error: 'token is required' },
-      { status: 400, headers: CORS_HEADERS }
+      { status: 400, headers: corsHeaders }
     )
   }
 
@@ -33,11 +32,10 @@ export async function GET(request: NextRequest) {
   if (authError || !user) {
     return NextResponse.json(
       { error: 'invalid or expired token' },
-      { status: 401, headers: CORS_HEADERS }
+      { status: 401, headers: corsHeaders }
     )
   }
 
-  // Use admin client for DB operations (bypasses RLS)
   const supabase = createAdminClient()
 
   const { data: profile } = await supabase
@@ -58,6 +56,6 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(
     { dedicated_email: dedicatedEmail, user_id: user.id },
-    { headers: CORS_HEADERS }
+    { headers: corsHeaders }
   )
 }

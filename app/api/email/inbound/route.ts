@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { timingSafeEqual } from 'crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { analyzeEmail } from '@/lib/gemini'
+import { inboundEmailSchema, parseBody } from '@/lib/validate'
 import type { ApplicationStatus } from '@/types/database'
 
 export const maxDuration = 60
@@ -31,7 +33,19 @@ function getClientIp(req: NextRequest): string {
   )
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────
+// ─── Timing-safe Bearer token verification ────────────────────────────
+function verifyBearer(authHeader: string, secret: string): boolean {
+  const expected = `Bearer ${secret}`
+  // timingSafeEqual requires equal-length buffers
+  if (Buffer.byteLength(authHeader) !== Buffer.byteLength(expected)) return false
+  try {
+    return timingSafeEqual(Buffer.from(authHeader), Buffer.from(expected))
+  } catch {
+    return false
+  }
+}
+
+// ─── Status mapper ────────────────────────────────────────────────────
 function mapToApplicationStatus(
   aiStatus: string,
   emailType: string
@@ -52,7 +66,7 @@ function mapToApplicationStatus(
 
 // ─── Handler ──────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
-  // 1. Rate limit (before auth to block floods)
+  // 1. Rate limit
   const ip = getClientIp(request)
   if (!checkRateLimit(ip)) {
     return NextResponse.json(
@@ -61,29 +75,30 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // 2. Verify shared secret
-  const auth = request.headers.get('authorization') ?? ''
+  // 2. Timing-safe Bearer token verification
+  const authHeader = request.headers.get('authorization') ?? ''
   const secret = process.env.JOBTRACK_API_SECRET
-  if (!secret || auth !== `Bearer ${secret}`) {
+  if (!secret || !verifyBearer(authHeader, secret)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // 3. Parse body
-  let body: { to?: string; from?: string; subject?: string; body?: string }
+  // 3. Parse and validate body
+  let rawBody: unknown
   try {
-    body = (await request.json()) as typeof body
+    rawBody = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { to, from, subject, body: emailBody } = body
-  if (!to || !from || !subject) {
-    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-  }
+  const validation = parseBody(inboundEmailSchema, rawBody)
+  if (!validation.ok) return validation.response
+
+  const { to, from, subject, body: emailBody } = validation.data
 
   const supabase = createAdminClient()
 
-  const rawTo = to ?? ''
+  // Extract address from "Name <addr@domain>" or plain "addr@domain"
+  const rawTo = to
   const toAddress = (rawTo.match(/<([^>]+)>/) ?? [, rawTo])[1]?.toLowerCase().trim() ?? ''
   console.log('[email/inbound] to (raw):', rawTo, '→ toAddress:', toAddress)
 
@@ -98,8 +113,6 @@ export async function POST(request: NextRequest) {
     .eq('dedicated_email', toAddress)
     .maybeSingle()
 
-  console.log('[email/inbound] userRecord:', userRecord, 'lookupError:', lookupError)
-
   if (lookupError) {
     console.error('[email/inbound] user lookup failed:', lookupError)
     return NextResponse.json({ error: 'DB error' }, { status: 500 })
@@ -111,7 +124,7 @@ export async function POST(request: NextRequest) {
   }
 
   const userId = userRecord.id
-  const bodyText = emailBody ?? ''
+  const bodyText = emailBody
 
   let analysis
   try {
@@ -128,11 +141,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, processed: false })
   }
 
-  const companyName = typeof analysis?.company_name === 'string' && analysis.company_name.trim()
-    ? analysis.company_name.trim()
-    : subject.slice(0, 100)
+  const companyName =
+    typeof analysis?.company_name === 'string' && analysis.company_name.trim()
+      ? analysis.company_name.trim()
+      : subject.slice(0, 100)
 
-  const appStatus = mapToApplicationStatus(analysis?.status ?? 'unknown', analysis?.email_type ?? 'other')
+  const appStatus = mapToApplicationStatus(
+    analysis?.status ?? 'unknown',
+    analysis?.email_type ?? 'other'
+  )
 
   try {
     const { data: existingApp } = await supabase
