@@ -155,11 +155,15 @@ export async function updateCustomFlow(
   applicationId: string,
   flow: string[]
 ) {
+  const userId = await getCurrentUserId()
+  if (!userId) return
+
   const supabase = createAdminClient()
   const { error } = await supabase
     .from('applications')
     .update({ custom_flow: flow })
     .eq('id', applicationId)
+    .eq('user_id', userId)
 
   if (error && error.code !== 'PGRST116') console.error('updateCustomFlow error:', error)
 }

@@ -5,6 +5,33 @@ import type { ApplicationStatus } from '@/types/database'
 
 export const maxDuration = 60
 
+// ─── IP-based rate limiter (in-memory, per function instance) ─────────
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+const RATE_LIMIT_MAX = 10
+const RATE_LIMIT_WINDOW_MS = 60 * 1000
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now()
+  const entry = rateLimitMap.get(ip)
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
+    return true
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false
+  entry.count++
+  return true
+}
+
+function getClientIp(req: NextRequest): string {
+  return (
+    req.headers.get('cf-connecting-ip') ??
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    req.headers.get('x-real-ip') ??
+    'unknown'
+  )
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────
 function mapToApplicationStatus(
   aiStatus: string,
   emailType: string
@@ -23,14 +50,25 @@ function mapToApplicationStatus(
   return map[aiStatus] ?? 'applied'
 }
 
+// ─── Handler ──────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
-  // Verify shared secret
+  // 1. Rate limit (before auth to block floods)
+  const ip = getClientIp(request)
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json(
+      { error: 'Too Many Requests' },
+      { status: 429, headers: { 'Retry-After': '60' } }
+    )
+  }
+
+  // 2. Verify shared secret
   const auth = request.headers.get('authorization') ?? ''
   const secret = process.env.JOBTRACK_API_SECRET
   if (!secret || auth !== `Bearer ${secret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // 3. Parse body
   let body: { to?: string; from?: string; subject?: string; body?: string }
   try {
     body = (await request.json()) as typeof body
@@ -45,7 +83,6 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient()
 
-  // Strip display name: "Name <addr@domain>" → "addr@domain"
   const rawTo = to ?? ''
   const toAddress = (rawTo.match(/<([^>]+)>/) ?? [, rawTo])[1]?.toLowerCase().trim() ?? ''
   console.log('[email/inbound] to (raw):', rawTo, '→ toAddress:', toAddress)
@@ -76,7 +113,6 @@ export async function POST(request: NextRequest) {
   const userId = userRecord.id
   const bodyText = emailBody ?? ''
 
-  // Analyze email content
   let analysis
   try {
     analysis = await analyzeEmail(subject, bodyText, from)
@@ -92,15 +128,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, processed: false })
   }
 
-  // Guard: company_name must be a non-empty string for DB operations
   const companyName = typeof analysis?.company_name === 'string' && analysis.company_name.trim()
     ? analysis.company_name.trim()
-    : subject.slice(0, 100)   // fall back to subject if AI returned null/empty
+    : subject.slice(0, 100)
 
   const appStatus = mapToApplicationStatus(analysis?.status ?? 'unknown', analysis?.email_type ?? 'other')
 
   try {
-    // Upsert application (match by user_id + company_name)
     const { data: existingApp } = await supabase
       .from('applications')
       .select('id')

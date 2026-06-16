@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { createClient } from '@/lib/supabase/server'
 
 export const maxDuration = 30
 
 export async function GET(req: NextRequest) {
+  // Must be authenticated to prevent API key abuse
+  const authClient = await createClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const name = req.nextUrl.searchParams.get('name')
   if (!name) {
     return NextResponse.json({ error: 'name is required' }, { status: 400 })

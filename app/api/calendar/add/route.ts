@@ -1,23 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
-  let body: { user_id?: string; title?: string; date?: string; type?: string }
+  // Verify session — never trust user_id from request body
+  const authClient = await createClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  let body: { title?: string; date?: string; type?: string }
   try {
     body = (await request.json()) as typeof body
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { user_id, title, date, type } = body
-  if (!user_id || !title || !date || !type) {
+  const { title, date, type } = body
+  if (!title || !date || !type) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
   const supabase = createAdminClient()
   const { error } = await supabase
     .from('calendar_events')
-    .insert({ user_id, title, date, type })
+    .insert({ user_id: user.id, title, date, type })
 
   if (error) {
     console.error('[calendar/add] insert failed:', error)
