@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import ThemeToggle from '@/components/ThemeToggle'
@@ -13,6 +13,7 @@ import {
   Inbox,
   MousePointerClick,
   Globe,
+  CheckCircle2,
 } from 'lucide-react'
 
 const FEATURES = [
@@ -51,8 +52,8 @@ const FEATURES = [
 const STEPS = [
   {
     step: '01',
-    title: 'Googleでログイン',
-    desc: 'ワンクリックでアカウント作成。@jobtrack.jp の専用メールアドレスが自動で発行されます。',
+    title: 'メールアドレスでログイン',
+    desc: 'メールアドレスを入力するだけでアカウント作成。@jobtrack.jp の専用メールアドレスが自動で発行されます。',
   },
   {
     step: '02',
@@ -67,25 +68,29 @@ const STEPS = [
 ]
 
 export default function LandingPage() {
+  const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
+  const [sent, setSent] = useState(false)
+  const emailRef = useRef<HTMLInputElement>(null)
 
-  async function handleGoogleLogin() {
+  async function handleMagicLink(e: React.FormEvent) {
+    e.preventDefault()
+    if (!email.trim()) return
     setLoading(true)
     const supabase = createClient()
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
+    await supabase.auth.signInWithOtp({
+      email: email.trim(),
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-        scopes: [
-          'https://www.googleapis.com/auth/gmail.readonly',
-          'https://www.googleapis.com/auth/gmail.modify',
-        ].join(' '),
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-        },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     })
+    setLoading(false)
+    setSent(true)
+  }
+
+  function scrollToForm() {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    setTimeout(() => emailRef.current?.focus(), 600)
   }
 
   return (
@@ -113,12 +118,11 @@ export default function LandingPage() {
               </a>
             )}
             <Button
-              onClick={handleGoogleLogin}
-              disabled={loading}
+              onClick={scrollToForm}
               size="sm"
               className="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 text-white px-5 h-9 shadow-lg shadow-indigo-500/30 border-0 hover:scale-[1.02] active:scale-[0.98] font-semibold"
             >
-              {loading ? 'ログイン中...' : 'ログイン'}
+              ログイン
             </Button>
           </div>
         </div>
@@ -148,7 +152,7 @@ export default function LandingPage() {
         <div className="relative max-w-4xl mx-auto px-6 pt-28 pb-36 sm:pt-36 sm:pb-44 text-center">
           <div className="animate-fade-in-up">
             <span className="inline-block mb-7 text-xs font-semibold tracking-widest text-indigo-600 dark:text-indigo-300 uppercase bg-indigo-50 dark:bg-white/10 border border-indigo-200 dark:border-white/15 rounded-full px-4 py-1.5">
-              ✨ 就活生のための自動追跡ツール
+              就活生のための自動追跡ツール
             </span>
           </div>
 
@@ -161,26 +165,61 @@ export default function LandingPage() {
           </h1>
 
           <p className="animate-fade-in-up delay-2 text-lg sm:text-xl text-slate-600 dark:text-indigo-100/80 mb-11 max-w-2xl mx-auto leading-relaxed">
-            専用メールアドレスを就活サイトに登録するだけ。
+            メールアドレスを入力するだけで登録完了。
             企業からの選考メールを AI が解析し、ステータスをリアルタイムで管理します。
           </p>
 
-          <div className="animate-fade-in-up delay-3 flex flex-col sm:flex-row gap-4 justify-center">
-            <Button
-              size="lg"
-              className="gap-2.5 text-base px-8 h-13 font-bold bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 text-white shadow-2xl shadow-indigo-500/40 border-0 hover:scale-[1.03] active:scale-[0.97]"
-              onClick={handleGoogleLogin}
-              disabled={loading}
-            >
-              <GoogleIcon />
-              {loading ? 'ログイン中...' : 'Googleで無料で始める'}
-            </Button>
-            <a
-              href="#how-it-works"
-              className="inline-flex items-center justify-center gap-2 text-base px-8 h-13 rounded-xl font-semibold border border-slate-300 dark:border-white/20 text-slate-700 dark:text-white/90 hover:bg-slate-100 dark:hover:bg-white/10 hover:border-slate-400 dark:hover:border-white/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              使い方を見る <ArrowRight className="w-4 h-4" />
-            </a>
+          <div className="animate-fade-in-up delay-3 max-w-md mx-auto">
+            {!sent ? (
+              <form onSubmit={handleMagicLink}>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    ref={emailRef}
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    required
+                    className="flex-1 h-12 px-4 rounded-xl border border-slate-300 dark:border-white/20 bg-white dark:bg-white/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/60 dark:focus:ring-indigo-400/60 text-sm"
+                  />
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="h-12 px-6 font-bold bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 text-white shadow-xl shadow-indigo-500/30 border-0 hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap"
+                  >
+                    {loading ? '送信中...' : '無料で始める'}
+                  </Button>
+                </div>
+                <div className="flex justify-center mt-5">
+                  <a
+                    href="#how-it-works"
+                    className="inline-flex items-center gap-2 text-sm text-slate-500 dark:text-white/60 hover:text-slate-700 dark:hover:text-white/90 transition-colors"
+                  >
+                    使い方を見る <ArrowRight className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </form>
+            ) : (
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-green-100 dark:bg-green-900/40 mb-4">
+                  <CheckCircle2 className="w-7 h-7 text-green-600 dark:text-green-400" />
+                </div>
+                <p className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+                  メールを送信しました
+                </p>
+                <p className="text-sm text-slate-500 dark:text-indigo-200/60 mb-5">
+                  <span className="font-mono text-slate-700 dark:text-indigo-300">{email}</span>{' '}
+                  に届いたリンクをクリックしてログインしてください
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { setSent(false); setEmail('') }}
+                  className="text-sm text-indigo-600 dark:text-indigo-300 hover:underline"
+                >
+                  別のアドレスを使う
+                </button>
+              </div>
+            )}
           </div>
 
           <p className="animate-fade-in-up delay-4 text-sm text-slate-400 dark:text-indigo-300/60 mt-6">
@@ -248,20 +287,40 @@ export default function LandingPage() {
 
       {/* ── CTA ──────────────────────────────────────────── */}
       <section className="py-28 border-t border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-white/[0.03]">
-        <div className="max-w-2xl mx-auto px-6 text-center">
-          <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white mb-5">就活の管理を自動化しよう</h2>
+        <div className="max-w-xl mx-auto px-6 text-center">
+          <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white mb-5">
+            就活の管理を自動化しよう
+          </h2>
           <p className="text-slate-600 dark:text-indigo-200/70 mb-10 text-lg leading-relaxed">
             今すぐ無料で始めて、選考状況を一元管理しましょう。
           </p>
-          <Button
-            size="lg"
-            className="gap-2.5 text-base px-8 h-13 font-bold bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 text-white shadow-2xl shadow-indigo-500/40 border-0 hover:scale-[1.03] active:scale-[0.97]"
-            onClick={handleGoogleLogin}
-            disabled={loading}
-          >
-            <GoogleIcon />
-            {loading ? 'ログイン中...' : 'Googleで無料スタート'}
-          </Button>
+
+          {!sent ? (
+            <form onSubmit={handleMagicLink} className="max-w-sm mx-auto">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  required
+                  className="flex-1 h-12 px-4 rounded-xl border border-slate-300 dark:border-white/20 bg-white dark:bg-white/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/60 dark:focus:ring-indigo-400/60 text-sm"
+                />
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="h-12 px-6 font-bold bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 text-white shadow-xl shadow-indigo-500/30 border-0 hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap"
+                >
+                  {loading ? '送信中...' : '無料スタート'}
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <div className="inline-flex items-center gap-3 text-sm text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800/50 rounded-xl px-5 py-3">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+              メールを送信しました。受信トレイをご確認ください。
+            </div>
+          )}
         </div>
       </section>
 
@@ -282,16 +341,5 @@ export default function LandingPage() {
         </div>
       </footer>
     </div>
-  )
-}
-
-function GoogleIcon() {
-  return (
-    <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
-      <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-      <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-      <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-      <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-    </svg>
   )
 }

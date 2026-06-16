@@ -30,23 +30,21 @@ export default async function SettingsPage({
   const supabase = createAdminClient()
   const { data: profile } = await supabase
     .from('users')
-    .select('dedicated_email, gmail_email, gmail_watch_expiration')
+    .select('dedicated_email')
     .eq('id', user.id)
     .maybeSingle()
 
   const { success, error } = await searchParams
 
   return (
-    <div className="dark min-h-screen bg-gradient-to-br from-indigo-950 via-[#1e1b4b] to-violet-900">
+    <div className="min-h-screen bg-white dark:bg-gradient-to-br dark:from-indigo-950 dark:via-[#1e1b4b] dark:to-violet-900">
       <NavBar user={user} dedicatedEmail={profile?.dedicated_email ?? null} />
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-10 animate-fade-in">
-        <h1 className="text-2xl font-bold text-white mb-8">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-8">
           設定
         </h1>
         <SettingsClient
           dedicatedEmail={profile?.dedicated_email ?? null}
-          gmailEmail={profile?.gmail_email ?? null}
-          gmailWatchExpiration={profile?.gmail_watch_expiration ?? null}
           successMessage={success}
           errorMessage={error}
         />
