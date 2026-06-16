@@ -11,47 +11,59 @@ import {
   Zap,
   ArrowRight,
   Inbox,
-  Shield,
-  Clock,
+  MousePointerClick,
+  Globe,
 } from 'lucide-react'
 
 const FEATURES = [
   {
     icon: Mail,
-    title: '専用メールを自動受信',
-    description: '就活サイトのサブメールアドレス欄に専用アドレスを登録するだけ。届いたメールを自動で解析します。',
+    title: '専用メールアドレスを自動発行',
+    description: 'ログインすると @jobtrack.jp の専用アドレスが即時発行。企業マイページのサブメール欄に登録するだけで追跡が始まります。',
   },
   {
     icon: Zap,
-    title: 'AIが選考状況を判断',
-    description: 'AIがメールの内容を解析し、書類選考・面接・内定など選考ステータスを自動で分類します。',
+    title: 'AIが選考メールを自動解析',
+    description: 'Groq / Llama がメール本文を解析し、書類選考・面接・内定・お祈りを自動で分類。手動入力は不要です。',
   },
   {
     icon: BarChart3,
-    title: 'ステータス一覧で管理',
-    description: '応募企業の選考状況をステータス形式で管理。手動での変更も簡単です。',
+    title: '全社の選考状況を一覧管理',
+    description: '応募中のすべての企業の選考ステータスをダッシュボードで一覧確認。ステータスは手動変更も可能です。',
   },
   {
     icon: CalendarDays,
-    title: '面接日程を自動登録',
-    description: 'メールから面接・説明会の日程を抽出してカレンダーに自動追加します。',
+    title: '面接・説明会の日程を自動登録',
+    description: 'メール本文から面接・説明会の日時を自動抽出。メールを開いたときにカレンダー追加をワンクリックで完了。',
   },
   {
-    icon: Shield,
-    title: 'セキュアな管理',
-    description: 'Googleアカウントでサインイン。あなたのデータは暗号化されて安全に保存されます。',
+    icon: MousePointerClick,
+    title: 'Chrome拡張でマイページ自動入力',
+    description: '「就活マイページ自動入力」Chrome拡張と連携。企業サイトのフォームに専用メールアドレスを自動でセット。',
   },
   {
-    icon: Clock,
-    title: '設定は3分で完了',
-    description: '面倒な初期設定は不要。ログインして専用アドレスを取得するだけですぐ使えます。',
+    icon: Globe,
+    title: 'Cloudflareで確実なメール受信',
+    description: 'Cloudflare Email Routing でメールを確実に受信・処理。サーバーレスで安定動作し、メールの見落としがゼロに。',
   },
 ]
 
 const STEPS = [
-  { step: '01', title: 'Googleでログイン', desc: 'ワンクリックでアカウント作成。あなた専用のメールアドレスが自動で発行されます。' },
-  { step: '02', title: '企業のマイページに登録', desc: '各企業のマイページのサブメールアドレス欄に、発行された専用アドレスを入力するだけ。' },
-  { step: '03', title: 'あとは自動でおまかせ', desc: '企業からメールが届くたびにAIが解析し、選考ステータスが自動で更新されていきます。' },
+  {
+    step: '01',
+    title: 'Googleでログイン',
+    desc: 'ワンクリックでアカウント作成。@jobtrack.jp の専用メールアドレスが自動で発行されます。',
+  },
+  {
+    step: '02',
+    title: '企業マイページのサブメール欄に登録',
+    desc: '発行された専用アドレスを各企業のマイページに入力。Chrome拡張を使えば自動入力でさらにラクに。',
+  },
+  {
+    step: '03',
+    title: 'あとはAIが全部やってくれる',
+    desc: 'メールが届くたびにAIが解析。選考ステータスが更新され、面接日程がカレンダーに自動登録されます。',
+  },
 ]
 
 export default function LandingPage() {

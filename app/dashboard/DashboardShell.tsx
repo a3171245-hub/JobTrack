@@ -61,12 +61,12 @@ export default function DashboardShell({
       initialApplications={applications}
       initialTodayUpdates={initialTodayUpdates}
     >
-      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 animate-fade-in bg-gray-50 dark:bg-transparent min-h-screen">
+      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 animate-fade-in min-h-screen">
         <TodayUpdates />
 
         {dedicatedEmail && (
           <div className="mt-6">
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-wider mb-2">
+            <p className="text-xs font-semibold text-indigo-300/60 uppercase tracking-wider mb-2">
               あなたの専用アドレス
             </p>
             <DedicatedEmailBanner email={dedicatedEmail} />
@@ -75,8 +75,8 @@ export default function DashboardShell({
 
         <div className="flex items-center justify-between mb-5 mt-8">
           <div className="flex items-baseline gap-3">
-            <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">選考管理</h1>
-            <span className="text-sm text-slate-500 dark:text-slate-500">
+            <h1 className="text-xl font-bold text-white">選考管理</h1>
+            <span className="text-sm text-indigo-300/60">
               {applications.length} 社
             </span>
           </div>
