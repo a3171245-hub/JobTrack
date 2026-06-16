@@ -19,6 +19,7 @@ export async function GET(request: Request) {
   }
 
   const userId = data.session.user.id
+  const userEmail = data.session.user.email ?? ''
   const dedicatedEmail = `${userId.slice(0, 8)}@jobtrack.jp`
 
   // Upsert user record — on conflict (existing user) do nothing to preserve existing dedicated_email
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
   await admin
     .from('users')
     .upsert(
-      { id: userId, dedicated_email: dedicatedEmail },
+      { id: userId, email: userEmail, dedicated_email: dedicatedEmail },
       { onConflict: 'id', ignoreDuplicates: true }
     )
 
