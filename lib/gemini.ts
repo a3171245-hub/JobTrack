@@ -13,10 +13,7 @@ export async function analyzeEmail(
   body: string,
   fromEmail: string
 ): Promise<EmailAnalysis> {
-  // GROQ_API_KEY is canonical; fall back to MAILGUN_SIGNING_KEY which historically held the Groq key
-  const apiKey = process.env.GROQ_API_KEY ?? process.env.MAILGUN_SIGNING_KEY
-  if (!apiKey) throw new Error('Groq API key not configured (set GROQ_API_KEY)')
-  const client = new Groq({ apiKey })
+  const client = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
   const prompt = `以下は日本の就活生に届いた企業からのメールです。
 JSON形式で情報を抽出してください。
