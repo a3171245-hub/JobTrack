@@ -12,34 +12,29 @@ interface Props {
   onClose: () => void
 }
 
+// Canvas dimensions — 1200 × 630 (standard OGP)
 const W = 1200
 const H = 630
 
-// ────────────────────────────────────────────────────────────────
-// Status progression order (from constants.ts)
-// applied → document → test → gd → interview_1 → interview_2 → final → offer
-// rejected = 落選, event = イベント
-//
-// 書類通過以降 = test, gd, interview_1, interview_2, final, offer
-// 面接実施以降 = interview_1, interview_2, final, offer
-// 内定          = offer
-// ────────────────────────────────────────────────────────────────
-const DOC_PASS_STATUSES = new Set(['test', 'gd', 'interview_1', 'interview_2', 'final', 'offer'])
-const INTERVIEW_STATUSES = new Set(['interview_1', 'interview_2', 'final', 'offer'])
-const OFFER_STATUSES = new Set(['offer'])
+// ── Aggregation ─────────────────────────────────────────────────────────────
+// Status order: applied → document → test → gd →
+//               interview_1 → interview_2 → final → offer
+// rejected / event are terminal states not counted as progression
+const DOC_PASS   = new Set(['test', 'gd', 'interview_1', 'interview_2', 'final', 'offer'])
+const INTERVIEW  = new Set(['interview_1', 'interview_2', 'final', 'offer'])
+const OFFER_ONLY = new Set(['offer'])
 
 function computeStats(apps: Application[]) {
-  const total = apps.length
-  const docPass = apps.filter((a) => DOC_PASS_STATUSES.has(a.status)).length
-  const interview = apps.filter((a) => INTERVIEW_STATUSES.has(a.status)).length
-  const offered = apps.filter((a) => OFFER_STATUSES.has(a.status)).length
-  return { total, docPass, interview, offered }
+  return {
+    total:     apps.length,
+    docPass:   apps.filter((a) => DOC_PASS.has(a.status)).length,
+    interview: apps.filter((a) => INTERVIEW.has(a.status)).length,
+    offered:   apps.filter((a) => OFFER_ONLY.has(a.status)).length,
+  }
 }
 
-// ────────────────────────────────────────────────────────────────
-// Canvas helpers
-// ────────────────────────────────────────────────────────────────
-function roundRect(
+// ── Canvas helper ─────────────────────────────────────────────────────────
+function rr(
   ctx: CanvasRenderingContext2D,
   x: number, y: number, w: number, h: number, r: number
 ) {
@@ -56,197 +51,149 @@ function roundRect(
   ctx.closePath()
 }
 
+// ── Draw function ─────────────────────────────────────────────────────────
 function drawCard(canvas: HTMLCanvasElement, apps: Application[]) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
   const { total, docPass, interview, offered } = computeStats(apps)
 
-  // ── Background ─────────────────────────────────────────────
-  const bg = ctx.createLinearGradient(0, 0, W, H)
-  bg.addColorStop(0,    '#0f0c29')
-  bg.addColorStop(0.45, '#302b63')
-  bg.addColorStop(1,    '#24243e')
-  ctx.fillStyle = bg
+  // System font stack (macOS / iOS renders Japanese cleanly)
+  const F = `-apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif`
+
+  // ── 1. Background ────────────────────────────────────────────
+  //    #F7F6FF — near-white with a hair of violet warmth
+  ctx.fillStyle = '#F7F6FF'
   ctx.fillRect(0, 0, W, H)
 
-  // Glow — top-right violet
-  const g1 = ctx.createRadialGradient(W * 0.88, H * 0.08, 0, W * 0.88, H * 0.08, 420)
-  g1.addColorStop(0, 'rgba(167,139,250,0.28)')
-  g1.addColorStop(1, 'rgba(167,139,250,0)')
-  ctx.fillStyle = g1
-  ctx.fillRect(0, 0, W, H)
+  // Outer frame — 1.5 px muted violet border (inset by half lineWidth to avoid clipping)
+  ctx.strokeStyle = '#E4DFFA'
+  ctx.lineWidth = 1.5
+  ctx.strokeRect(0.75, 0.75, W - 1.5, H - 1.5)
 
-  // Glow — bottom-left indigo
-  const g2 = ctx.createRadialGradient(W * 0.08, H * 0.92, 0, W * 0.08, H * 0.92, 360)
-  g2.addColorStop(0, 'rgba(99,102,241,0.32)')
-  g2.addColorStop(1, 'rgba(99,102,241,0)')
-  ctx.fillStyle = g2
-  ctx.fillRect(0, 0, W, H)
+  // ── 2. Header (y centre ≈ 66) ───────────────────────────────
+  // Logo dot
+  ctx.beginPath()
+  ctx.arc(80, 66, 11, 0, Math.PI * 2)
+  ctx.fillStyle = '#7C3AED'   // violet-600
+  ctx.fill()
 
-  // Subtle star-dots
-  ctx.save()
-  for (let i = 0; i < 220; i++) {
-    const x = Math.random() * W
-    const y = Math.random() * H
-    const r = Math.random() * 1.5 + 0.3
-    const a = Math.random() * 0.45 + 0.05
-    ctx.globalAlpha = a
-    ctx.beginPath()
-    ctx.arc(x, y, r, 0, Math.PI * 2)
-    ctx.fillStyle = '#c4b5fd'
-    ctx.fill()
-  }
-  ctx.restore()
+  // "JobTrack"
+  ctx.fillStyle = '#7C3AED'
+  ctx.font = `700 24px ${F}`
+  ctx.textAlign = 'left'
+  ctx.fillText('JobTrack', 103, 73)
 
-  // Thin horizontal accent line
-  const lineGrad = ctx.createLinearGradient(80, 0, W - 80, 0)
-  lineGrad.addColorStop(0,   'rgba(167,139,250,0)')
-  lineGrad.addColorStop(0.3, 'rgba(167,139,250,0.7)')
-  lineGrad.addColorStop(0.7, 'rgba(99,102,241,0.7)')
-  lineGrad.addColorStop(1,   'rgba(99,102,241,0)')
-  ctx.strokeStyle = lineGrad
+  // Separator dot
+  ctx.beginPath()
+  ctx.arc(253, 66, 3.5, 0, Math.PI * 2)
+  ctx.fillStyle = '#C4B5FD'   // violet-300
+  ctx.fill()
+
+  // Sub-title
+  ctx.fillStyle = '#9CA3AF'   // gray-400
+  ctx.font = `500 21px ${F}`
+  ctx.fillText('就活戦績レポート', 268, 73)
+
+  // ── 3. Header divider (y=96) ─────────────────────────────────
+  ctx.strokeStyle = '#EDE9FE'   // violet-100
   ctx.lineWidth = 1.5
   ctx.beginPath()
-  ctx.moveTo(80, 130)
-  ctx.lineTo(W - 80, 130)
+  ctx.moveTo(60, 96)
+  ctx.lineTo(W - 60, 96)
   ctx.stroke()
 
-  // ── JobTrack badge (top-left) ────────────────────────────────
-  const font = `-apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif`
+  // ── 4. Hero — offered count (centred in y=96..416) ───────────
+  //    Number baseline  y=288   font=152px
+  //    "社内定"          y=352   font=44px
+  //    Context line     y=390   font=19px
 
-  // pill bg
-  ctx.save()
-  roundRect(ctx, 80, 52, 168, 44, 22)
-  ctx.globalAlpha = 0.18
-  ctx.fillStyle = '#a78bfa'
-  ctx.fill()
-  ctx.restore()
-  // pill border
-  ctx.save()
-  roundRect(ctx, 80, 52, 168, 44, 22)
-  ctx.globalAlpha = 0.35
-  ctx.strokeStyle = '#c4b5fd'
-  ctx.lineWidth = 1.5
-  ctx.stroke()
-  ctx.restore()
-
-  ctx.fillStyle = '#e0d7ff'
-  ctx.font = `700 22px ${font}`
+  // Big number
+  ctx.fillStyle = '#4C1D95'   // violet-900 — strong, readable
+  ctx.font = `900 152px ${F}`
   ctx.textAlign = 'center'
-  ctx.fillText('JobTrack', 80 + 84, 52 + 29)
+  ctx.fillText(String(offered), W / 2, 288)
 
-  // ── Title ────────────────────────────────────────────────────
-  ctx.fillStyle = '#c4b5fd'
-  ctx.font = `600 26px ${font}`
-  ctx.textAlign = 'left'
-  ctx.fillText('就活戦績レポート', 80, 104)
+  // "社内定"
+  ctx.fillStyle = '#111827'   // gray-900
+  ctx.font = `700 44px ${F}`
+  ctx.textAlign = 'center'
+  ctx.fillText('社内定', W / 2, 352)
 
-  // ── Hero: offer count ─────────────────────────────────────────
-  // Large offered number
-  ctx.fillStyle = '#ffffff'
-  ctx.font = `900 148px ${font}`
-  ctx.textAlign = 'left'
-  const heroNum = String(offered)
-  ctx.fillText(heroNum, 80, 290)
+  // Context line
+  ctx.fillStyle = '#9CA3AF'
+  ctx.font = `400 19px ${F}`
+  ctx.textAlign = 'center'
+  ctx.fillText(`全 ${total} 社にエントリー`, W / 2, 390)
 
-  const heroNumW = ctx.measureText(heroNum).width
+  // ── 5. Mid divider (y=416) ───────────────────────────────────
+  ctx.strokeStyle = '#EDE9FE'
+  ctx.lineWidth = 1.5
+  ctx.beginPath()
+  ctx.moveTo(60, 416)
+  ctx.lineTo(W - 60, 416)
+  ctx.stroke()
 
-  // "社内定" suffix
-  ctx.fillStyle = '#c4b5fd'
-  ctx.font = `700 46px ${font}`
-  ctx.textAlign = 'left'
-  ctx.fillText('社内定', 80 + heroNumW + 8, 274)
-
-  // "/" separator
-  ctx.fillStyle = 'rgba(196,181,253,0.4)'
-  ctx.font = `300 38px ${font}`
-  ctx.fillText(`/ ${total}社エントリー`, 80 + heroNumW + 8, 322)
-
-  // ── Stat cards ────────────────────────────────────────────────
-  const statData = [
-    { label: '総エントリー', value: total,     accent: '#818cf8' },  // indigo
-    { label: '書類通過',     value: docPass,   accent: '#34d399' },  // emerald
-    { label: '面接実施',     value: interview, accent: '#60a5fa' },  // blue
-    { label: '内定',         value: offered,   accent: '#a78bfa' },  // violet
+  // ── 6. Sub-stat cards (3 × equal, y=436) ────────────────────
+  //    Each card: 296 × 128 px, 24 px gap
+  //    Total width: 296×3 + 24×2 = 936 px → startX = 132
+  const cards = [
+    { label: '総エントリー', value: total },
+    { label: '書類通過',     value: docPass },
+    { label: '面接実施',     value: interview },
   ]
+  const cW = 296
+  const cH = 128
+  const cGap = 24
+  const cX0 = (W - (cW * 3 + cGap * 2)) / 2   // = 132
+  const cY  = 436
 
-  const cardW = 230
-  const cardH = 172
-  const cardGap = 20
-  const totalCardsW = statData.length * cardW + (statData.length - 1) * cardGap
-  const cardsStartX = (W - totalCardsW) / 2
-  const cardsY = H - cardH - 56
+  cards.forEach((card, i) => {
+    const x = cX0 + i * (cW + cGap)
+    const y = cY
 
-  statData.forEach((stat, i) => {
-    const cx = cardsStartX + i * (cardW + cardGap)
-    const cy = cardsY
-
-    // Card glass background
-    ctx.save()
-    roundRect(ctx, cx, cy, cardW, cardH, 18)
-    ctx.globalAlpha = 0.14
-    ctx.fillStyle = '#ffffff'
+    // Card fill
+    rr(ctx, x, y, cW, cH, 16)
+    ctx.fillStyle = '#FFFFFF'
     ctx.fill()
-    ctx.restore()
 
-    // Card border
-    ctx.save()
-    roundRect(ctx, cx, cy, cardW, cardH, 18)
-    ctx.globalAlpha = 0.22
-    ctx.strokeStyle = stat.accent
+    // Card border — violet-100
+    rr(ctx, x, y, cW, cH, 16)
+    ctx.strokeStyle = '#EDE9FE'
     ctx.lineWidth = 1.5
     ctx.stroke()
-    ctx.restore()
 
-    // Top accent bar
-    ctx.save()
-    const barGrad = ctx.createLinearGradient(cx, cy, cx + cardW, cy)
-    barGrad.addColorStop(0, stat.accent)
-    barGrad.addColorStop(1, 'rgba(0,0,0,0)')
-    roundRect(ctx, cx + 18, cy + 14, 56, 3, 2)
-    ctx.globalAlpha = 0.85
-    ctx.fillStyle = barGrad
+    // Top accent stripe (4 px, violet-600)
+    rr(ctx, x + 20, y + 16, 40, 4, 2)
+    ctx.fillStyle = '#7C3AED'
     ctx.fill()
-    ctx.restore()
 
     // Value
-    ctx.fillStyle = '#ffffff'
-    ctx.font = `800 78px ${font}`
+    ctx.fillStyle = '#111827'
+    ctx.font = `800 58px ${F}`
     ctx.textAlign = 'center'
-    ctx.fillText(String(stat.value), cx + cardW / 2, cy + 102)
-
-    // "社" unit
-    ctx.fillStyle = stat.accent
-    ctx.font = `600 22px ${font}`
-    const valW = ctx.measureText(String(stat.value)).width
-    ctx.textAlign = 'left'
-    ctx.fillText('社', cx + cardW / 2 + valW / 2 + 4, cy + 94)
+    ctx.fillText(String(card.value), x + cW / 2, y + 78)
 
     // Label
-    ctx.fillStyle = 'rgba(196,181,253,0.8)'
-    ctx.font = `600 20px ${font}`
+    ctx.fillStyle = '#9CA3AF'
+    ctx.font = `500 17px ${F}`
     ctx.textAlign = 'center'
-    ctx.fillText(stat.label, cx + cardW / 2, cy + cardH - 20)
+    ctx.fillText(card.label, x + cW / 2, y + 107)
   })
 
-  // ── Footer URL ────────────────────────────────────────────────
-  ctx.fillStyle = 'rgba(148,163,184,0.45)'
-  ctx.font = `400 18px ${font}`
+  // ── 7. Footer URL (bottom-right) ─────────────────────────────
+  ctx.fillStyle = '#D1D5DB'   // gray-300
+  ctx.font = `400 15px ${F}`
   ctx.textAlign = 'right'
-  ctx.fillText('job-track-tawny.vercel.app', W - 80, H - 22)
+  ctx.fillText('job-track-tawny.vercel.app', W - 60, H - 22)
 }
 
-// ────────────────────────────────────────────────────────────────
-// Component
-// ────────────────────────────────────────────────────────────────
+// ── Component ─────────────────────────────────────────────────────────────
 export default function ShareCardDialog({ applications, onClose }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
-    if (canvasRef.current) {
-      drawCard(canvasRef.current, applications)
-    }
+    if (canvasRef.current) drawCard(canvasRef.current, applications)
   }, [applications])
 
   const handleDownload = useCallback(() => {
@@ -260,7 +207,7 @@ export default function ShareCardDialog({ applications, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       onClick={onClose}
     >
       <div
@@ -274,7 +221,7 @@ export default function ShareCardDialog({ applications, onClose }: Props) {
               戦績シェア画像
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              SNSにシェアしたり、画像として保存できます
+              ダウンロードして X (Twitter) や Instagram にシェアできます
             </p>
           </div>
           <button
@@ -285,9 +232,9 @@ export default function ShareCardDialog({ applications, onClose }: Props) {
           </button>
         </div>
 
-        {/* Preview */}
-        <div className="p-4 bg-slate-950/60">
-          <div className="rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/10">
+        {/* Preview — light bg so the white card is visible */}
+        <div className="p-5 bg-slate-100 dark:bg-slate-800/60">
+          <div className="rounded-xl overflow-hidden shadow-md ring-1 ring-slate-200 dark:ring-slate-700">
             <canvas
               ref={canvasRef}
               width={W}
@@ -300,13 +247,11 @@ export default function ShareCardDialog({ applications, onClose }: Props) {
 
         {/* Footer */}
         <div className="flex items-center justify-between px-5 py-4 border-t border-slate-200 dark:border-slate-700/60">
-          <p className="text-xs text-slate-400">
-            1200 × 630 px — X (Twitter) / Instagram に最適
-          </p>
+          <p className="text-xs text-slate-400">1200 × 630 px</p>
           <Button
             onClick={handleDownload}
             size="sm"
-            className="gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white"
+            className="gap-1.5 bg-violet-600 hover:bg-violet-500 text-white"
           >
             <Download className="w-4 h-4" />
             ダウンロード
