@@ -4,6 +4,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { ApplicationStatus, TestResult } from '@/types/database'
 
+const FREE_ACTIVE_LIMIT = 5
+
 async function getCurrentUserId(): Promise<string | null> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -20,7 +22,7 @@ export async function updateApplicationStatus(
   const supabase = createAdminClient()
   const { error } = await supabase
     .from('applications')
-    .update({ status })
+    .update({ status, updated_by: 'manual' })
     .eq('id', applicationId)
     .eq('user_id', userId)
 
@@ -30,18 +32,15 @@ export async function updateApplicationStatus(
   }
 }
 
-const FREE_COMPANY_LIMIT = 5
-
 export async function addApplication(
   companyName: string,
   notes?: string
-): Promise<{ id: string } | { limitReached: true } | null> {
+): Promise<{ id: string; isActive: boolean } | null> {
   const userId = await getCurrentUserId()
   if (!userId) return null
 
   const supabase = createAdminClient()
 
-  // Enforce free plan company limit server-side (client-side check is UI-only)
   const { data: profile } = await supabase
     .from('users')
     .select('plan')
@@ -50,18 +49,17 @@ export async function addApplication(
 
   const plan = profile?.plan ?? 'free'
 
+  // Free plan: cap active count at 5; new company added as inactive when at limit
+  let isActive = true
   if (plan === 'free') {
     const { count } = await supabase
       .from('applications')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
-
-    if ((count ?? 0) >= FREE_COMPANY_LIMIT) {
-      return { limitReached: true }
-    }
+      .eq('is_active', true)
+    if ((count ?? 0) >= FREE_ACTIVE_LIMIT) isActive = false
   }
 
-  // Enforce max company name length
   const sanitizedName = companyName.trim().slice(0, 200)
   const sanitizedNotes = notes ? notes.trim().slice(0, 2000) : null
 
@@ -72,6 +70,7 @@ export async function addApplication(
       company_name: sanitizedName,
       status: 'applied',
       notes: sanitizedNotes,
+      is_active: isActive,
     })
     .select('id')
     .single()
@@ -81,7 +80,42 @@ export async function addApplication(
     return null
   }
 
-  return { id: data.id }
+  return { id: data.id, isActive }
+}
+
+export async function setApplicationActive(
+  applicationId: string,
+  isActive: boolean
+): Promise<{ ok: true } | { limitReached: true }> {
+  const userId = await getCurrentUserId()
+  if (!userId) return { limitReached: true }
+
+  const supabase = createAdminClient()
+
+  if (isActive) {
+    const { data: profile } = await supabase
+      .from('users')
+      .select('plan')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if ((profile?.plan ?? 'free') === 'free') {
+      const { count } = await supabase
+        .from('applications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_active', true)
+      if ((count ?? 0) >= FREE_ACTIVE_LIMIT) return { limitReached: true }
+    }
+  }
+
+  await supabase
+    .from('applications')
+    .update({ is_active: isActive })
+    .eq('id', applicationId)
+    .eq('user_id', userId)
+
+  return { ok: true }
 }
 
 export async function deleteApplication(applicationId: string) {
@@ -114,7 +148,6 @@ export async function updateAptitudeTest(
   if (!userId) throw new Error('unauthorized')
 
   const supabase = createAdminClient()
-  // Explicitly enumerate fields to prevent mass assignment
   const { error } = await supabase
     .from('applications')
     .update({

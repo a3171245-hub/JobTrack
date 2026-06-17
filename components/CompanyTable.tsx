@@ -23,6 +23,8 @@ import {
   Search,
   X,
   Rocket,
+  Pin,
+  PinOff,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { ApplicationStatus } from '@/types/database'
@@ -62,33 +64,13 @@ function EsDeadlineCell({ deadline }: { deadline: string | null }) {
   const dateStr = format(new Date(deadline), 'M/d', { locale: ja })
 
   if (daysLeft < 0) return <span className="text-xs text-slate-400 dark:text-slate-600">{dateStr}</span>
-
-  if (daysLeft === 0) {
-    return (
-      <span className="text-xs font-medium text-red-600 dark:text-red-400">
-        {dateStr} <span className="text-red-400 dark:text-red-500">今日</span>
-      </span>
-    )
-  }
-  if (daysLeft <= 3) {
-    return (
-      <span className="text-xs font-medium text-red-600 dark:text-red-400">
-        {dateStr} <span className="text-red-400 dark:text-red-500">{daysLeft}日後</span>
-      </span>
-    )
-  }
-  if (daysLeft <= 7) {
-    return (
-      <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
-        {dateStr} <span className="text-amber-400 dark:text-amber-500">{daysLeft}日後</span>
-      </span>
-    )
-  }
-  return (
-    <span className="text-xs text-slate-500 dark:text-slate-500">
-      {dateStr} <span className="text-slate-400 dark:text-slate-600">{daysLeft}日後</span>
-    </span>
-  )
+  if (daysLeft === 0)
+    return <span className="text-xs font-medium text-red-600 dark:text-red-400">{dateStr} <span className="text-red-400 dark:text-red-500">今日</span></span>
+  if (daysLeft <= 3)
+    return <span className="text-xs font-medium text-red-600 dark:text-red-400">{dateStr} <span className="text-red-400 dark:text-red-500">{daysLeft}日後</span></span>
+  if (daysLeft <= 7)
+    return <span className="text-xs font-medium text-amber-600 dark:text-amber-400">{dateStr} <span className="text-amber-400 dark:text-amber-500">{daysLeft}日後</span></span>
+  return <span className="text-xs text-slate-500 dark:text-slate-500">{dateStr} <span className="text-slate-400 dark:text-slate-600">{daysLeft}日後</span></span>
 }
 
 function CompanyAvatar({ name }: { name: string }) {
@@ -102,20 +84,31 @@ function CompanyAvatar({ name }: { name: string }) {
 }
 
 export default function CompanyTable() {
-  const { applications, removeApplication } = useDashboard()
+  const { applications, plan, activeCount, removeApplication, toggleActive } = useDashboard()
   const [showRejected, setShowRejected] = useState(false)
+  const [showInactive, setShowInactive] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'all'>('all')
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
 
+  // フリープランで非アクティブ企業を分離
+  const activeApps = useMemo(
+    () => applications.filter((a) => a.is_active !== false),
+    [applications]
+  )
+  const inactiveApps = useMemo(
+    () => (plan === 'free' ? applications.filter((a) => a.is_active === false) : []),
+    [applications, plan]
+  )
+
   const suggestions = useMemo(() => {
     if (!searchQuery.trim()) return []
     const q = searchQuery.toLowerCase()
-    return [...new Set(applications.map((a) => a.company_name))]
+    return [...new Set(activeApps.map((a) => a.company_name))]
       .filter((n) => n.toLowerCase().includes(q))
       .slice(0, 8)
-  }, [searchQuery, applications])
+  }, [searchQuery, activeApps])
 
   useEffect(() => { setHighlightedIndex(-1) }, [suggestions])
 
@@ -149,24 +142,16 @@ export default function CompanyTable() {
     toast.success('削除しました')
   }
 
-  const filteredApps = applications
+  const filteredActive = activeApps
     .filter((a) => a.status !== 'event')
     .filter((a) => statusFilter === 'all' || a.status === statusFilter)
-    .filter(
-      (a) =>
-        !searchQuery ||
-        a.company_name.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+    .filter((a) => !searchQuery || a.company_name.toLowerCase().includes(searchQuery.toLowerCase()))
 
   const filteringRejected = statusFilter === 'rejected'
-  const mainApps = filteringRejected
-    ? filteredApps
-    : filteredApps.filter((a) => a.status !== 'rejected')
-  const collapsedRejectedApps = filteringRejected
-    ? []
-    : filteredApps.filter((a) => a.status === 'rejected')
+  const mainApps = filteringRejected ? filteredActive : filteredActive.filter((a) => a.status !== 'rejected')
+  const collapsedRejectedApps = filteringRejected ? [] : filteredActive.filter((a) => a.status === 'rejected')
 
-  if (applications.filter((a) => a.status !== 'event').length === 0) {
+  if (activeApps.filter((a) => a.status !== 'event').length === 0 && inactiveApps.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center text-center py-24 px-6 bg-white dark:bg-slate-900/80 rounded-2xl ring-1 ring-slate-900/5 dark:ring-slate-700/60 shadow-sm animate-fade-in-up transition-colors">
         <div className="relative mb-6 animate-float">
@@ -177,9 +162,7 @@ export default function CompanyTable() {
             <Rocket className="w-4 h-4 text-white" />
           </span>
         </div>
-        <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">
-          最初の企業を追加しよう
-        </h3>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">最初の企業を追加しよう</h3>
         <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs mb-7 leading-relaxed">
           応募した企業を登録すると、選考ステータスやES締切、面接日程をここで一元管理できます。
         </p>
@@ -190,6 +173,14 @@ export default function CompanyTable() {
 
   return (
     <div className="space-y-4">
+      {/* フリープラン アクティブ枠インジケーター */}
+      {plan === 'free' && (
+        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-500">
+          <Pin className="w-3.5 h-3.5 text-indigo-400" />
+          <span>アクティブ枠: <span className={cn('font-semibold', activeCount >= 5 ? 'text-amber-600 dark:text-amber-400' : 'text-indigo-600 dark:text-indigo-400')}>{activeCount} / 5</span></span>
+        </div>
+      )}
+
       {/* 検索・フィルターバー */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[180px] max-w-xs">
@@ -255,8 +246,16 @@ export default function CompanyTable() {
         )}
       </div>
 
-      <TableBody apps={mainApps} onDelete={handleDelete} showAffiliate={filteringRejected} />
+      {/* アクティブ企業テーブル */}
+      <TableBody
+        apps={mainApps}
+        onDelete={handleDelete}
+        onToggleActive={plan === 'free' ? toggleActive : undefined}
+        activeCount={activeCount}
+        showAffiliate={filteringRejected}
+      />
 
+      {/* お祈り折りたたみ */}
       {collapsedRejectedApps.length > 0 && (
         <div>
           <button
@@ -268,7 +267,39 @@ export default function CompanyTable() {
           </button>
           {showRejected && (
             <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
-              <TableBody apps={collapsedRejectedApps} onDelete={handleDelete} showAffiliate />
+              <TableBody
+                apps={collapsedRejectedApps}
+                onDelete={handleDelete}
+                onToggleActive={plan === 'free' ? toggleActive : undefined}
+                activeCount={activeCount}
+                showAffiliate
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 非アクティブ企業（フリープランのみ） */}
+      {plan === 'free' && inactiveApps.length > 0 && (
+        <div>
+          <button
+            onClick={() => setShowInactive((v) => !v)}
+            className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors mt-4 mb-3"
+          >
+            {showInactive ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            <PinOff className="w-3.5 h-3.5 opacity-60" />
+            非アクティブ（{inactiveApps.length}社）
+          </button>
+          {showInactive && (
+            <div className="border-t border-slate-100 dark:border-slate-800 pt-4 opacity-60">
+              <TableBody
+                apps={inactiveApps}
+                onDelete={handleDelete}
+                onToggleActive={toggleActive}
+                activeCount={activeCount}
+                showAffiliate={false}
+                isInactiveSection
+              />
             </div>
           )}
         </div>
@@ -280,11 +311,17 @@ export default function CompanyTable() {
 function TableBody({
   apps,
   onDelete,
+  onToggleActive,
+  activeCount,
   showAffiliate,
+  isInactiveSection = false,
 }: {
   apps: ReturnType<typeof useDashboard>['applications']
   onDelete: (id: string, name: string) => void
+  onToggleActive?: (id: string, isActive: boolean) => Promise<void>
+  activeCount: number
   showAffiliate: boolean
+  isInactiveSection?: boolean
 }) {
   if (apps.length === 0) {
     return (
@@ -300,33 +337,27 @@ function TableBody({
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-gray-100 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700/60">
-            <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider w-[240px]">
-              企業名
-            </th>
-            <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider w-[160px]">
-              ステータス
-            </th>
-            <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider hidden md:table-cell">
-              最終メール
-            </th>
-            <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider hidden lg:table-cell w-[170px]">
-              面接日程
-            </th>
-            <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider hidden xl:table-cell w-[120px]">
-              ES締切
-            </th>
-            <th className="px-5 py-3.5 w-[100px]" />
+            <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider w-[240px]">企業名</th>
+            <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider w-[160px]">ステータス</th>
+            <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider hidden md:table-cell">最終メール</th>
+            <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider hidden lg:table-cell w-[170px]">面接日程</th>
+            <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider hidden xl:table-cell w-[120px]">ES締切</th>
+            <th className="px-5 py-3.5 w-[120px]" />
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
           {apps.map((app) => {
             const deadlineSoon = isDeadlineSoon(app.es_deadline)
+            const isActive = app.is_active !== false
+
             return (
               <tr
                 key={app.id}
                 className={cn(
                   'group transition-all duration-150 border-l-[3px] border-l-transparent hover:border-l-indigo-500',
-                  deadlineSoon
+                  isInactiveSection
+                    ? 'bg-slate-50/50 dark:bg-slate-900/30'
+                    : deadlineSoon
                     ? 'bg-rose-50/60 dark:bg-rose-950/10 hover:bg-rose-50 dark:hover:bg-rose-950/20'
                     : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/20'
                 )}
@@ -340,7 +371,11 @@ function TableBody({
                   </div>
                 </td>
                 <td className="px-5 py-4">
-                  <InlineStatusBadge applicationId={app.id} status={app.status} />
+                  <InlineStatusBadge
+                    applicationId={app.id}
+                    status={app.status}
+                    updatedBy={app.updated_by ?? 'ai'}
+                  />
                 </td>
                 <td className="px-5 py-4 hidden md:table-cell">
                   <div>
@@ -380,6 +415,33 @@ function TableBody({
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     )}
+
+                    {/* ピン留め / ピン留め解除ボタン（フリープランのみ） */}
+                    {onToggleActive && (
+                      isActive ? (
+                        <button
+                          onClick={() => onToggleActive(app.id, false)}
+                          className="text-slate-300 dark:text-slate-700 hover:text-amber-500 dark:hover:text-amber-400 transition-colors opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                          title="ピン留め解除（非アクティブにする）"
+                        >
+                          <PinOff className="w-3.5 h-3.5" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => onToggleActive(app.id, true)}
+                          className={cn(
+                            'p-1 rounded transition-colors',
+                            activeCount >= 5
+                              ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                              : 'text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/30'
+                          )}
+                          title={activeCount >= 5 ? 'アクティブ枠が上限です（5/5）' : 'ピン留めしてアクティブにする'}
+                        >
+                          <Pin className="w-3.5 h-3.5" />
+                        </button>
+                      )
+                    )}
+
                     <button
                       onClick={() => onDelete(app.id, app.company_name)}
                       className="text-slate-300 dark:text-slate-700 hover:text-rose-500 dark:hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30"

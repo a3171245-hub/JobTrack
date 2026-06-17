@@ -13,30 +13,23 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Plus, Sparkles, Loader2, X, Lock } from 'lucide-react'
+import { Plus, Sparkles, Loader2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Database } from '@/types/database'
 
 type Application = Database['public']['Tables']['applications']['Row']
 
-const FREE_COMPANY_LIMIT = 5
-
 export default function AddApplicationDialog({
   plan = 'free',
-  applicationsCount = 0,
 }: {
   plan?: 'free' | 'premium'
-  applicationsCount?: number
 }) {
   const [open, setOpen] = useState(false)
-  const [limitOpen, setLimitOpen] = useState(false)
   const [company, setCompany] = useState('')
   const [notes, setNotes] = useState('')
   const [fetching, setFetching] = useState(false)
   const [saving, setSaving] = useState(false)
   const { addApplication: addToContext } = useDashboard()
-
-  const isAtFreeLimit = plan === 'free' && applicationsCount >= FREE_COMPANY_LIMIT
 
   async function fetchCompanyInfo() {
     if (!company.trim()) return
@@ -61,16 +54,13 @@ export default function AddApplicationDialog({
     try {
       const result = await addApplication(company.trim(), notes || undefined)
 
-      if (result && 'limitReached' in result) {
-        setSaving(false)
-        setOpen(false)
-        setLimitOpen(true)
+      if (!result) {
+        toast.error('追加に失敗しました')
         return
       }
 
-      // 楽観的に画面に追加
       const newApp: Application = {
-        id: result?.id ?? crypto.randomUUID(),
+        id: result.id,
         user_id: '00000000-0000-0000-0000-000000000000',
         company_name: company.trim(),
         status: 'applied',
@@ -85,11 +75,21 @@ export default function AddApplicationDialog({
         es_deadline: null,
         custom_flow: null,
         gd_date: null,
+        is_active: result.isActive,
+        updated_by: 'ai',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
       addToContext(newApp)
-      toast.success(`${company} を追加しました`)
+
+      if (!result.isActive) {
+        toast.success(`${company} を追加しました`, {
+          description: 'アクティブ枠（5社）が上限のため非アクティブで追加されました。ピン留め解除してスペースを作るとアクティブにできます。',
+          duration: 6000,
+        })
+      } else {
+        toast.success(`${company} を追加しました`)
+      }
       reset()
     } catch {
       toast.error('追加に失敗しました')
@@ -107,7 +107,7 @@ export default function AddApplicationDialog({
   return (
     <>
       <Button
-        onClick={() => isAtFreeLimit ? setLimitOpen(true) : setOpen(true)}
+        onClick={() => setOpen(true)}
         size="sm"
         className="gap-1.5 h-9 px-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-md shadow-indigo-600/25 hover:shadow-indigo-600/35 hover:scale-[1.02] active:scale-[0.98] font-semibold"
       >
@@ -115,36 +115,6 @@ export default function AddApplicationDialog({
         企業を追加
       </Button>
 
-      {/* フリープラン上限モーダル */}
-      <Dialog open={limitOpen} onOpenChange={setLimitOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Lock className="w-4 h-4 text-amber-500" />
-              企業登録数の上限に達しました
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-3 space-y-3">
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              フリープランでは最大{FREE_COMPANY_LIMIT}社まで登録できます。
-            </p>
-            <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/50 rounded-xl p-3 text-xs text-indigo-700 dark:text-indigo-400">
-              プレミアムプラン（月額¥500）にアップグレードすると企業を無制限に登録できます。
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setLimitOpen(false)}>閉じる</Button>
-            <Button
-              onClick={() => setLimitOpen(false)}
-              className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-0"
-            >
-              アップグレード（準備中）
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* 通常追加ダイアログ */}
       <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); else setOpen(true) }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -206,6 +176,12 @@ export default function AddApplicationDialog({
                     {notes}
                   </div>
                 </div>
+              )}
+
+              {plan === 'free' && (
+                <p className="text-xs text-slate-400">
+                  フリープランではアクティブ管理は5社まで。超えた分は非アクティブで保存されます。
+                </p>
               )}
             </div>
             <DialogFooter>

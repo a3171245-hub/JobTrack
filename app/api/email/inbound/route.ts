@@ -167,6 +167,7 @@ export async function POST(request: NextRequest) {
         .update({
           status: appStatus,
           latest_email_subject: subject,
+          updated_by: 'ai',
           ...(analysis.interview_date ? { interview_date: analysis.interview_date } : {}),
           ...(analysis.event_date ? { event_date: analysis.event_date } : {}),
         })

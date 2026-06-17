@@ -12,9 +12,12 @@ import {
 import type { Database, ApplicationStatus } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { readOverlay, writeOverlay } from '@/lib/status-overlay'
+import { setApplicationActive } from '@/app/dashboard/actions'
 import { toast } from 'sonner'
 
 type Application = Database['public']['Tables']['applications']['Row']
+
+const FREE_ACTIVE_LIMIT = 5
 
 export interface UpdateRecord {
   id: string
@@ -28,9 +31,12 @@ export interface UpdateRecord {
 interface DashboardContextType {
   applications: Application[]
   todayUpdates: UpdateRecord[]
+  plan: 'free' | 'premium'
+  activeCount: number
   updateStatus: (id: string, newStatus: ApplicationStatus) => void
   addApplication: (app: Application) => void
   removeApplication: (id: string) => void
+  toggleActive: (id: string, newIsActive: boolean) => Promise<void>
 }
 
 const DashboardContext = createContext<DashboardContextType | null>(null)
@@ -38,38 +44,42 @@ const DashboardContext = createContext<DashboardContextType | null>(null)
 export function DashboardProvider({
   initialApplications,
   initialTodayUpdates,
+  plan = 'free',
   children,
 }: {
   initialApplications: Application[]
   initialTodayUpdates: UpdateRecord[]
+  plan?: 'free' | 'premium'
   children: ReactNode
 }) {
   const [applications, setApplications] = useState(initialApplications)
-  const [todayUpdates, setTodayUpdates] =
-    useState<UpdateRecord[]>(initialTodayUpdates)
+  const [todayUpdates, setTodayUpdates] = useState<UpdateRecord[]>(initialTodayUpdates)
   const overlayRef = useRef<Record<string, ApplicationStatus>>({})
 
-  // マウント時：未確定の変更を復元し、ブラウザクライアント経由で再送する
+  const activeCount = applications.filter((a) => a.is_active !== false).length
+
+  // マウント時：未確定の変更を復元してバックグラウンドで再送
   useEffect(() => {
     const overlay = readOverlay()
     overlayRef.current = overlay
     const ids = Object.keys(overlay)
     if (ids.length === 0) return
 
-    // 画面に未確定ステータスを反映（localStorage参照のためマウント後に実行）
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setApplications((prev) =>
       prev.map((a) => (overlay[a.id] ? { ...a, status: overlay[a.id] } : a))
     )
 
-    // バックグラウンドで再送
     const supabase = createClient()
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session?.user?.id) return
       ids.forEach((id) => {
         supabase
           .from('applications')
-          .update({ status: overlay[id], updated_at: new Date().toISOString() })
+          .update({
+            status: overlay[id],
+            updated_at: new Date().toISOString(),
+            updated_by: 'manual',
+          })
           .eq('id', id)
           .eq('user_id', session.user.id)
           .then(
@@ -85,13 +95,11 @@ export function DashboardProvider({
 
   const updateStatus = useCallback(
     async (id: string, newStatus: ApplicationStatus) => {
-      console.log('updateStatus called:', id, newStatus)
       const target = applications.find((a) => a.id === id)
       if (!target || target.status === newStatus) return
 
       const fromStatus = target.status as ApplicationStatus
 
-      // 楽観的UI更新
       setApplications((prev) =>
         prev.map((a) => (a.id === id ? { ...a, status: newStatus } : a))
       )
@@ -106,48 +114,37 @@ export function DashboardProvider({
         ...prev,
       ])
 
-      // まず localStorage に控える（保存失敗してもリロードで維持される）
       overlayRef.current[id] = newStatus
       writeOverlay(overlayRef.current)
 
       toast.success(`${target.company_name} のステータスを更新しました`)
 
-      // ブラウザクライアントで認証確認してから永続化
       try {
         const supabase = createClient()
-        // getUser() はサーバーに検証リクエストを送るので getSession() より確実
         const { data: { user }, error: authError } = await supabase.auth.getUser()
-        console.log('[DashboardContext] auth user:', user?.id, authError?.message)
-
-        if (!user) {
-          throw new Error('no active session')
-        }
-
-        console.log('[DashboardContext] updating app:', id, '→', newStatus, 'user:', user.id)
+        if (!user) throw new Error('no active session')
 
         const { data, error } = await supabase
           .from('applications')
-          .update({ status: newStatus, updated_at: new Date().toISOString() })
+          .update({
+            status: newStatus,
+            updated_at: new Date().toISOString(),
+            updated_by: 'manual',
+          })
           .eq('id', id)
           .eq('user_id', user.id)
           .select()
 
-        console.log('[DashboardContext] update result:', data, error)
-
         if (error) throw error
-
-        // 0行更新 = RLS またはIDが不一致（サイレント失敗を検知）
         if (!data || data.length === 0) {
-          console.warn('[DashboardContext] 0 rows updated — check RLS or user_id mismatch', { id, userId: user.id })
+          console.warn('[DashboardContext] 0 rows updated', { id, userId: user.id }, authError)
           throw new Error('update matched 0 rows')
         }
 
-        // 保存成功 → オーバーレイを解除
         delete overlayRef.current[id]
         writeOverlay(overlayRef.current)
       } catch (err) {
         console.error('[DashboardContext] updateStatus failed:', err)
-        // 保存失敗時: UIを元のステータスにロールバック
         setApplications((prev) =>
           prev.map((a) => (a.id === id ? { ...a, status: fromStatus } : a))
         )
@@ -157,6 +154,45 @@ export function DashboardProvider({
       }
     },
     [applications]
+  )
+
+  const toggleActive = useCallback(
+    async (id: string, newIsActive: boolean) => {
+      const target = applications.find((a) => a.id === id)
+      if (!target) return
+
+      // クライアント側でも上限チェック（楽観的更新前）
+      if (newIsActive && plan === 'free') {
+        const currentActiveCount = applications.filter((a) => a.is_active !== false).length
+        if (currentActiveCount >= FREE_ACTIVE_LIMIT) {
+          toast.error(`アクティブ枠の上限（${FREE_ACTIVE_LIMIT}社）に達しています。他の企業をピン留め解除してください。`)
+          return
+        }
+      }
+
+      // 楽観的更新
+      setApplications((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, is_active: newIsActive } : a))
+      )
+
+      const result = await setApplicationActive(id, newIsActive)
+
+      if ('limitReached' in result) {
+        // ロールバック
+        setApplications((prev) =>
+          prev.map((a) => (a.id === id ? { ...a, is_active: !newIsActive } : a))
+        )
+        toast.error(`アクティブ枠の上限（${FREE_ACTIVE_LIMIT}社）に達しています。`)
+        return
+      }
+
+      toast.success(
+        newIsActive
+          ? `${target.company_name} をピン留めしました`
+          : `${target.company_name} のピン留めを解除しました`
+      )
+    },
+    [applications, plan]
   )
 
   const addApplication = useCallback((app: Application) => {
@@ -185,9 +221,12 @@ export function DashboardProvider({
       value={{
         applications,
         todayUpdates,
+        plan,
+        activeCount,
         updateStatus,
         addApplication,
         removeApplication,
+        toggleActive,
       }}
     >
       {children}

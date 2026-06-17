@@ -6,10 +6,12 @@ import { STATUS_LABELS, STATUS_COLORS, KANBAN_COLUMNS } from '@/lib/constants'
 import type { ApplicationStatus } from '@/types/database'
 import { useDashboard } from '@/contexts/DashboardContext'
 import PremiumModal from '@/components/PremiumModal'
+import { Pencil } from 'lucide-react'
 
 interface InlineStatusBadgeProps {
   applicationId: string
   status: ApplicationStatus
+  updatedBy?: 'ai' | 'manual'
 }
 
 const ALL_STATUSES: ApplicationStatus[] = [...KANBAN_COLUMNS, 'event' as ApplicationStatus]
@@ -17,6 +19,7 @@ const ALL_STATUSES: ApplicationStatus[] = [...KANBAN_COLUMNS, 'event' as Applica
 export default function InlineStatusBadge({
   applicationId,
   status,
+  updatedBy = 'ai',
 }: InlineStatusBadgeProps) {
   const [editing, setEditing] = useState(false)
   const [showPremium, setShowPremium] = useState(false)
@@ -37,17 +40,28 @@ export default function InlineStatusBadge({
   if (!editing) {
     return (
       <>
-        <Badge
-          variant="outline"
-          className={`text-xs cursor-pointer hover:opacity-80 transition-opacity ${STATUS_COLORS[status]}`}
-          onClick={(e) => {
-            e.stopPropagation()
-            setEditing(true)
-          }}
-          title="クリックして変更"
-        >
-          {STATUS_LABELS[status]}
-        </Badge>
+        <div className="flex items-center gap-1">
+          <Badge
+            variant="outline"
+            className={`text-xs cursor-pointer hover:opacity-80 transition-opacity ${STATUS_COLORS[status]}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              setEditing(true)
+            }}
+            title="クリックして変更"
+          >
+            {STATUS_LABELS[status]}
+          </Badge>
+          {updatedBy === 'manual' && (
+            <span
+              className="inline-flex items-center gap-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500"
+              title="手動で変更されました"
+            >
+              <Pencil className="w-2.5 h-2.5" />
+              手動
+            </span>
+          )}
+        </div>
         {showPremium && <PremiumModal onClose={() => setShowPremium(false)} />}
       </>
     )

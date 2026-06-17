@@ -81,6 +81,8 @@ export interface Database {
           es_deadline: string | null
           custom_flow: Json | null
           gd_date: string | null
+          is_active: boolean
+          updated_by: 'ai' | 'manual'
           created_at: string
           updated_at: string
         }
@@ -100,6 +102,8 @@ export interface Database {
           es_deadline?: string | null
           custom_flow?: Json | null
           gd_date?: string | null
+          is_active?: boolean
+          updated_by?: 'ai' | 'manual'
           created_at?: string
           updated_at?: string
         }
@@ -119,6 +123,8 @@ export interface Database {
           es_deadline?: string | null
           custom_flow?: Json | null
           gd_date?: string | null
+          is_active?: boolean
+          updated_by?: 'ai' | 'manual'
           created_at?: string
           updated_at?: string
         }
