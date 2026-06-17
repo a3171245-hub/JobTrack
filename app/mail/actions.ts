@@ -51,7 +51,10 @@ export async function trackCompany(emailLogId: string): Promise<TrackResult> {
     .eq('user_id', user.id)
     .single()
 
-  if (!emailLog) return { error: 'not_found' }
+  if (!emailLog) {
+    console.error('[trackCompany] email log not found:', emailLogId)
+    return { error: 'not_found' }
+  }
   if (emailLog.application_id) return { error: 'already_tracked' }
 
   // Check free plan active limit
@@ -62,11 +65,12 @@ export async function trackCompany(emailLogId: string): Promise<TrackResult> {
     .maybeSingle()
 
   if ((profile?.plan ?? 'free') === 'free') {
-    const { count } = await supabase
+    const { count, error: countErr } = await supabase
       .from('applications')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .eq('is_active', true)
+    if (countErr) console.warn('[trackCompany] is_active count error (non-fatal):', countErr.message)
     if ((count ?? 0) >= FREE_ACTIVE_LIMIT) return { limitReached: true }
   }
 
@@ -78,6 +82,7 @@ export async function trackCompany(emailLogId: string): Promise<TrackResult> {
       emailLog.body_text ?? '',
       emailLog.sender ?? ''
     )
+    console.log('[trackCompany] analysis:', JSON.stringify(analysis))
   } catch (err) {
     console.error('[trackCompany] AI analysis failed:', err)
     return { error: 'analysis_failed' }
@@ -106,7 +111,10 @@ export async function trackCompany(emailLogId: string): Promise<TrackResult> {
     .select('id')
     .single()
 
-  if (insertError || !newApp) return { error: 'insert_failed' }
+  if (insertError || !newApp) {
+    console.error('[trackCompany] application insert failed:', insertError?.message, insertError?.details)
+    return { error: 'insert_failed' }
+  }
 
   // Set columns that require migration 014/013; errors ignored — no-op if columns don't exist yet
   await supabase
