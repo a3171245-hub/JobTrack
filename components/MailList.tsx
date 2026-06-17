@@ -69,19 +69,22 @@ function saveSet(key: string, set: Set<string>) {
 
 // ─── Calendar Prompt ──────────────────────────────────────────────
 function CalendarPrompt({
-  companyName, date, dateType, userId, onDone,
+  companyName, candidates, dateType, userId, onDone,
 }: {
   companyName: string
-  date: string
+  candidates: string[]  // at least one
   dateType: 'interview' | 'event'
   userId: string
   onDone: () => void
 }) {
+  const [selectedDate, setSelectedDate] = useState(candidates[0])
   const [status, setStatus] = useState<'idle' | 'loading' | 'done'>('idle')
   const label = dateType === 'interview' ? '面接' : '説明会・イベント'
-  const formatted = (() => {
-    try { return format(parseISO(date), 'yyyy年M月d日(E) HH:mm', { locale: ja }) } catch { return date }
-  })()
+  const isMultiple = candidates.length > 1
+
+  function fmt(d: string) {
+    try { return format(parseISO(d), 'yyyy年M月d日(E) HH:mm', { locale: ja }) } catch { return d }
+  }
 
   async function handleAdd() {
     setStatus('loading')
@@ -89,7 +92,7 @@ function CalendarPrompt({
       await fetch('/api/calendar/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, title: `${companyName} — ${label}`, date, type: dateType }),
+        body: JSON.stringify({ user_id: userId, title: `${companyName} — ${label}`, date: selectedDate, type: dateType }),
       })
       setStatus('done')
       setTimeout(onDone, 800)
@@ -112,8 +115,30 @@ function CalendarPrompt({
       <div className="flex items-start gap-3">
         <CalendarDays className="w-5 h-5 text-indigo-600 dark:text-indigo-400 mt-0.5 flex-shrink-0" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-100">{label}の日程が見つかりました</p>
-          <p className="text-sm text-indigo-700 dark:text-indigo-300 mt-0.5">{formatted} · {companyName}</p>
+          <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-100">
+            {isMultiple ? `${label}の日程候補が${candidates.length}件あります` : `${label}の日程が見つかりました`}
+          </p>
+          {isMultiple ? (
+            <div className="mt-2 space-y-1.5">
+              {candidates.map((d, i) => (
+                <label key={d} className="flex items-center gap-2.5 cursor-pointer group">
+                  <input
+                    type="radio"
+                    name="interview-date"
+                    value={d}
+                    checked={selectedDate === d}
+                    onChange={() => setSelectedDate(d)}
+                    className="w-3.5 h-3.5 accent-indigo-600"
+                  />
+                  <span className={`text-sm transition-colors ${selectedDate === d ? 'text-indigo-800 dark:text-indigo-200 font-medium' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                    候補{['A','B','C','D','E'][i] ?? i + 1}：{fmt(d)}
+                  </span>
+                </label>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-indigo-700 dark:text-indigo-300 mt-0.5">{fmt(selectedDate)} · {companyName}</p>
+          )}
           <div className="flex gap-2 mt-3">
             <button
               onClick={handleAdd}
@@ -137,11 +162,11 @@ function CalendarPrompt({
 
 // ─── Mail Modal ───────────────────────────────────────────────────
 function MailModal({
-  log, companyName, calendarDate, calendarType, userId, onClose,
+  log, companyName, calendarCandidates, calendarType, userId, onClose,
 }: {
   log: EmailLog
   companyName: string
-  calendarDate: string | null
+  calendarCandidates: string[]
   calendarType: 'interview' | 'event'
   userId: string
   onClose: () => void
@@ -197,10 +222,10 @@ function MailModal({
           </button>
         </div>
 
-        {calendarDate && !calendarHandled && (
+        {calendarCandidates.length > 0 && !calendarHandled && (
           <CalendarPrompt
             companyName={companyName}
-            date={calendarDate}
+            candidates={calendarCandidates}
             dateType={calendarType}
             userId={userId}
             onDone={handleCalendarDone}
@@ -248,7 +273,7 @@ export default function MailList({
 }: {
   logs: EmailLog[]
   companyMap: Record<string, string>
-  appDateMap?: Record<string, { interview_date: string | null; event_date: string | null }>
+  appDateMap?: Record<string, { interview_date: string | null; interview_date_candidates?: string[] | null; event_date: string | null }>
   userId?: string
   freeLimitHit?: boolean
   plan?: 'free' | 'premium'
@@ -554,14 +579,23 @@ export default function MailList({
       {selectedLog && (() => {
         const appId = selectedLog.application_id
         const dates = appId ? appDateMap[appId] : null
-        const calendarDate = dates?.interview_date ?? dates?.event_date ?? null
-        const calendarType: 'interview' | 'event' = dates?.interview_date ? 'interview' : 'event'
+        // Build candidate list: prefer candidates array, fall back to single dates
+        const calendarCandidates: string[] = (() => {
+          const c = dates?.interview_date_candidates?.filter(Boolean) ?? []
+          if (c.length > 0) return c
+          if (dates?.interview_date) return [dates.interview_date]
+          if (dates?.event_date) return [dates.event_date]
+          return []
+        })()
+        const calendarType: 'interview' | 'event' =
+          (dates?.interview_date_candidates?.length ?? 0) > 0 || dates?.interview_date
+            ? 'interview' : 'event'
         const companyName = appId ? companyMap[appId] ?? '企業未紐付け' : '企業未紐付け'
         return (
           <MailModal
             log={selectedLog}
             companyName={companyName}
-            calendarDate={calendarDate}
+            calendarCandidates={calendarCandidates}
             calendarType={calendarType}
             userId={userId}
             onClose={() => setSelectedLog(null)}

@@ -109,7 +109,11 @@ export async function trackCompany(emailLogId: string): Promise<TrackResult> {
   )
   const appStatus = mapToApplicationStatus(analysis.status, analysis.email_type)
 
-  const safeInterviewDate = toISODateOrNull(analysis.interview_date)
+  // Sanitize all date values from AI
+  const safeCandidates = (analysis.interview_date_candidates ?? [])
+    .map(toISODateOrNull)
+    .filter((d): d is string => d !== null)
+  const safeInterviewDate = safeCandidates[0] ?? toISODateOrNull(analysis.interview_date)
   const safeEventDate = toISODateOrNull(analysis.event_date)
 
   // Create application (omit columns that may not exist yet; set them in a follow-up UPDATE)
@@ -147,12 +151,13 @@ export async function trackCompany(emailLogId: string): Promise<TrackResult> {
     return { error: 'insert_failed' }
   }
 
-  // Set columns that require migration 014/013; errors ignored — no-op if columns don't exist yet
+  // Set columns that require migrations 013/014/016; errors ignored — no-op if columns don't exist yet
   await supabase
     .from('applications')
     .update({
       ...(senderDomain ? { sender_domain: senderDomain } : {}),
       updated_by: 'ai',
+      ...(safeCandidates.length > 0 ? { interview_date_candidates: safeCandidates } : {}),
     })
     .eq('id', newApp.id)
 
@@ -189,6 +194,7 @@ export async function trackCompany(emailLogId: string): Promise<TrackResult> {
   let latestSubject: string | null = emailLog.subject ?? null
   let latestInterviewDate: string | null = safeInterviewDate
   let latestEventDate: string | null = safeEventDate
+  let latestCandidates: string[] = safeCandidates
   let retroCount = 0
 
   for (const log of untrackedLogs) {
@@ -211,9 +217,12 @@ export async function trackCompany(emailLogId: string): Promise<TrackResult> {
 
       latestStatus = s
       latestSubject = log.subject ?? latestSubject
-      const d1 = toISODateOrNull(a.interview_date)
+      const retCandidates = (a.interview_date_candidates ?? [])
+        .map(toISODateOrNull)
+        .filter((d): d is string => d !== null)
+      const d1 = retCandidates[0] ?? toISODateOrNull(a.interview_date)
       const d2 = toISODateOrNull(a.event_date)
-      if (d1) latestInterviewDate = d1
+      if (d1) { latestInterviewDate = d1; latestCandidates = retCandidates }
       if (d2) latestEventDate = d2
       retroCount++
     } catch {
@@ -234,6 +243,7 @@ export async function trackCompany(emailLogId: string): Promise<TrackResult> {
       latest_email_subject: latestSubject,
       ...(latestInterviewDate ? { interview_date: latestInterviewDate } : {}),
       ...(latestEventDate ? { event_date: latestEventDate } : {}),
+      ...(latestCandidates.length > 0 ? { interview_date_candidates: latestCandidates } : {}),
     })
     .eq('id', newApp.id)
 

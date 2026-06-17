@@ -66,6 +66,7 @@ export default function AddApplicationDialog({
         status: 'applied',
         latest_email_subject: null,
         interview_date: null,
+        interview_date_candidates: null,
         event_date: null,
         test_type: null,
         test_date: null,

@@ -72,6 +72,7 @@ export interface Database {
           status: ApplicationStatus
           latest_email_subject: string | null
           interview_date: string | null
+          interview_date_candidates: string[] | null
           event_date: string | null
           test_type: string | null
           test_date: string | null
@@ -94,6 +95,7 @@ export interface Database {
           status?: ApplicationStatus
           latest_email_subject?: string | null
           interview_date?: string | null
+          interview_date_candidates?: string[] | null
           event_date?: string | null
           test_type?: string | null
           test_date?: string | null
@@ -116,6 +118,7 @@ export interface Database {
           status?: ApplicationStatus
           latest_email_subject?: string | null
           interview_date?: string | null
+          interview_date_candidates?: string[] | null
           event_date?: string | null
           test_type?: string | null
           test_date?: string | null
