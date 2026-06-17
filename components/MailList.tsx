@@ -292,39 +292,61 @@ export default function MailList({
               key={log.id}
               onClick={() => open(log)}
               className={[
-                'group w-full text-left',
-                'bg-white dark:bg-white/8',
-                'hover:bg-slate-50 dark:hover:bg-white/12',
-                'border border-slate-200 dark:border-white/10',
-                'hover:border-slate-300 dark:hover:border-white/20',
-                'rounded-xl px-4 py-3.5 flex items-start gap-3',
-                'hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200',
-                // Left accent stripe
+                'group w-full text-left rounded-xl px-4 py-3.5 flex items-start gap-3',
+                'hover:-translate-y-0.5 transition-all duration-200',
+                // Left accent stripe: visible only when unread
                 'border-l-4',
-                isRead ? 'border-l-slate-200 dark:border-l-white/15' : cfg.stripe,
+                isRead
+                  ? [
+                      'bg-white dark:bg-white/5',
+                      'border border-slate-100 dark:border-white/8',
+                      'border-l-transparent',
+                      'hover:bg-slate-50 dark:hover:bg-white/10',
+                      'hover:shadow-md',
+                    ].join(' ')
+                  : [
+                      'bg-indigo-50/60 dark:bg-indigo-950/30',
+                      'border border-indigo-200/70 dark:border-indigo-700/40',
+                      cfg.stripe,
+                      'hover:bg-indigo-50 dark:hover:bg-indigo-950/40',
+                      'hover:shadow-lg hover:shadow-indigo-100/50 dark:hover:shadow-indigo-950/30',
+                    ].join(' '),
               ].join(' ')}
             >
-              {/* Unread dot */}
-              <span className="mt-1.5 flex-shrink-0 w-2 h-2">
-                <span className={`block w-2 h-2 rounded-full ${isRead ? 'opacity-0' : cfg.dot}`} />
-              </span>
-
               <div className="flex-1 min-w-0">
+                {/* Row 1: type badge · company · date · 未読バッジ */}
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${cfg.badge}`}>
                     {cfg.label}
                   </span>
-                  <span className="text-sm font-semibold text-slate-900 dark:text-white truncate max-w-[200px]">
+                  <span className={`text-sm truncate max-w-[180px] ${
+                    isRead
+                      ? 'font-medium text-slate-500 dark:text-white/50'
+                      : 'font-bold text-slate-900 dark:text-white'
+                  }`}>
                     {companyName}
                   </span>
-                  <span className="ml-auto text-xs text-slate-400 dark:text-indigo-300/70 whitespace-nowrap">
-                    {format(new Date(log.received_at), 'M/d HH:mm', { locale: ja })}
-                  </span>
+                  <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
+                    {!isRead && (
+                      <span className="text-[10px] font-bold tracking-wide px-1.5 py-0.5 rounded-md bg-indigo-600 dark:bg-indigo-500 text-white leading-none">
+                        未読
+                      </span>
+                    )}
+                    <span className={`text-xs whitespace-nowrap ${
+                      isRead
+                        ? 'text-slate-300 dark:text-white/25'
+                        : 'text-slate-500 dark:text-indigo-300/80'
+                    }`}>
+                      {format(new Date(log.received_at), 'M/d HH:mm', { locale: ja })}
+                    </span>
+                  </div>
                 </div>
+
+                {/* Row 2: subject */}
                 <p className={`text-sm truncate ${
                   isRead
-                    ? 'text-slate-400 dark:text-white/40'
-                    : 'text-slate-800 dark:text-white/90 font-medium'
+                    ? 'text-slate-400 dark:text-white/35'
+                    : 'font-semibold text-slate-800 dark:text-white/95'
                 }`}>
                   {log.subject ?? '（件名なし）'}
                 </p>
