@@ -2,10 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createClient } from '@/lib/supabase/server'
 import { companyInfoSchema, parseBody } from '@/lib/validate'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 export const maxDuration = 30
 
 export async function GET(req: NextRequest) {
+  // Rate limit: 20 requests per minute per IP (Gemini quota protection)
+  if (!checkRateLimit(req, { id: 'company-info', max: 20, windowMs: 60_000 })) {
+    return NextResponse.json({ error: 'Too Many Requests' }, { status: 429, headers: { 'Retry-After': '60' } })
+  }
+
   // Must be authenticated to prevent API key abuse
   const authClient = await createClient()
   const { data: { user } } = await authClient.auth.getUser()

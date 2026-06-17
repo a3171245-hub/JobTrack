@@ -24,6 +24,8 @@ export const inboundEmailSchema = z.object({
   body: z.string().max(100_000).optional().default(''), // 100 KB cap
 })
 
+const CALENDAR_EVENT_TYPES = ['interview', 'gd', 'test', 'deadline', 'event', 'other'] as const
+
 /** /api/calendar/add */
 export const calendarAddSchema = z.object({
   title: z.string().min(1).max(500).trim(),
@@ -31,7 +33,7 @@ export const calendarAddSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}/, 'Date must start with YYYY-MM-DD')
     .max(50),
-  type: z.string().min(1).max(50).trim(),
+  type: z.enum(CALENDAR_EVENT_TYPES),
 })
 
 /** /api/company-info?name= */

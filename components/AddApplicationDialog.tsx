@@ -61,6 +61,13 @@ export default function AddApplicationDialog({
     try {
       const result = await addApplication(company.trim(), notes || undefined)
 
+      if (result && 'limitReached' in result) {
+        setSaving(false)
+        setOpen(false)
+        setLimitOpen(true)
+        return
+      }
+
       // 楽観的に画面に追加
       const newApp: Application = {
         id: result?.id ?? crypto.randomUUID(),

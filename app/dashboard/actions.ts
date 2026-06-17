@@ -30,21 +30,48 @@ export async function updateApplicationStatus(
   }
 }
 
+const FREE_COMPANY_LIMIT = 5
+
 export async function addApplication(
   companyName: string,
   notes?: string
-): Promise<{ id: string } | null> {
+): Promise<{ id: string } | { limitReached: true } | null> {
   const userId = await getCurrentUserId()
   if (!userId) return null
 
   const supabase = createAdminClient()
+
+  // Enforce free plan company limit server-side (client-side check is UI-only)
+  const { data: profile } = await supabase
+    .from('users')
+    .select('plan')
+    .eq('id', userId)
+    .maybeSingle()
+
+  const plan = profile?.plan ?? 'free'
+
+  if (plan === 'free') {
+    const { count } = await supabase
+      .from('applications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+
+    if ((count ?? 0) >= FREE_COMPANY_LIMIT) {
+      return { limitReached: true }
+    }
+  }
+
+  // Enforce max company name length
+  const sanitizedName = companyName.trim().slice(0, 200)
+  const sanitizedNotes = notes ? notes.trim().slice(0, 2000) : null
+
   const { data, error } = await supabase
     .from('applications')
     .insert({
       user_id: userId,
-      company_name: companyName,
+      company_name: sanitizedName,
       status: 'applied',
-      notes: notes ?? null,
+      notes: sanitizedNotes,
     })
     .select('id')
     .single()
@@ -87,9 +114,15 @@ export async function updateAptitudeTest(
   if (!userId) throw new Error('unauthorized')
 
   const supabase = createAdminClient()
+  // Explicitly enumerate fields to prevent mass assignment
   const { error } = await supabase
     .from('applications')
-    .update(data)
+    .update({
+      test_type: data.test_type,
+      test_date: data.test_date,
+      test_result: data.test_result,
+      notes: data.notes ?? null,
+    })
     .eq('id', applicationId)
     .eq('user_id', userId)
 
@@ -133,6 +166,8 @@ export async function updateEsDeadline(
   }
 }
 
+const MEMO_MAX_LENGTH = 10_000
+
 export async function updateMemo(applicationId: string, memo: string) {
   const userId = await getCurrentUserId()
   if (!userId) return { ok: false as const }
@@ -140,7 +175,7 @@ export async function updateMemo(applicationId: string, memo: string) {
   const supabase = createAdminClient()
   const { error } = await supabase
     .from('applications')
-    .update({ memo })
+    .update({ memo: memo.slice(0, MEMO_MAX_LENGTH) })
     .eq('id', applicationId)
     .eq('user_id', userId)
 
