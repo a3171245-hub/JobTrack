@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
   const { data: trackedApp } = senderDomain
     ? await supabase
         .from('applications')
-        .select('id, company_name')
+        .select('id, company_name, status')
         .eq('user_id', userId)
         .eq('sender_domain', senderDomain)
         .maybeSingle()
@@ -196,6 +196,20 @@ export async function POST(request: NextRequest) {
       sender: from,
       email_type: (analysis.email_type ?? 'other') as 'selection' | 'event' | 'other',
     })
+
+    if (appStatus !== trackedApp.status) {
+      await supabase.from('email_logs').insert({
+        user_id: userId,
+        application_id: trackedApp.id,
+        subject: 'ステータス更新',
+        body_text: JSON.stringify({
+          company_name: trackedApp.company_name,
+          from_status: trackedApp.status,
+          to_status: appStatus,
+        }),
+        email_type: 'manual_update' as const,
+      })
+    }
 
     return NextResponse.json({ ok: true, processed: true })
   } catch (err) {
