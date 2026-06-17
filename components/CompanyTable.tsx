@@ -333,138 +333,245 @@ function TableBody({
   }
 
   return (
-    <div className="bg-white dark:bg-slate-900/80 rounded-2xl border border-slate-200 dark:border-slate-700/60 overflow-hidden shadow-sm transition-colors">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="bg-gray-100 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700/60">
-            <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider w-[240px]">企業名</th>
-            <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider w-[160px]">ステータス</th>
-            <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider hidden md:table-cell">最終メール</th>
-            <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider hidden lg:table-cell w-[170px]">面接日程</th>
-            <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider hidden xl:table-cell w-[120px]">ES締切</th>
-            <th className="px-5 py-3.5 w-[120px]" />
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-          {apps.map((app) => {
-            const deadlineSoon = isDeadlineSoon(app.es_deadline)
-            const isActive = app.is_active !== false
+    <>
+      {/* ── PC テーブル（md以上） ────────────────────────── */}
+      <div className="hidden md:block bg-white dark:bg-slate-900/80 rounded-2xl border border-slate-200 dark:border-slate-700/60 overflow-hidden shadow-sm transition-colors">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-100 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700/60">
+              <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider w-[240px]">企業名</th>
+              <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider w-[160px]">ステータス</th>
+              <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider hidden md:table-cell">最終メール</th>
+              <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider hidden lg:table-cell w-[170px]">面接日程</th>
+              <th className="text-left px-5 py-3.5 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider hidden xl:table-cell w-[120px]">ES締切</th>
+              <th className="px-5 py-3.5 w-[120px]" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+            {apps.map((app) => {
+              const deadlineSoon = isDeadlineSoon(app.es_deadline)
+              const isActive = app.is_active !== false
 
-            return (
-              <tr
-                key={app.id}
-                className={cn(
-                  'group transition-all duration-150 border-l-[3px] border-l-transparent hover:border-l-indigo-500',
-                  isInactiveSection
-                    ? 'bg-slate-50/50 dark:bg-slate-900/30'
-                    : deadlineSoon
-                    ? 'bg-rose-50/60 dark:bg-rose-950/10 hover:bg-rose-50 dark:hover:bg-rose-950/20'
-                    : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/20'
-                )}
-              >
-                <td className="px-5 py-4">
-                  <div className="flex items-center gap-3">
-                    <CompanyAvatar name={app.company_name} />
-                    <span className="font-semibold text-slate-900 dark:text-slate-100 truncate max-w-[160px]">
-                      {app.company_name}
-                    </span>
-                  </div>
-                </td>
-                <td className="px-5 py-4">
+              return (
+                <tr
+                  key={app.id}
+                  className={cn(
+                    'group transition-all duration-150 border-l-[3px] border-l-transparent hover:border-l-indigo-500',
+                    isInactiveSection
+                      ? 'bg-slate-50/50 dark:bg-slate-900/30'
+                      : deadlineSoon
+                      ? 'bg-rose-50/60 dark:bg-rose-950/10 hover:bg-rose-50 dark:hover:bg-rose-950/20'
+                      : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/20'
+                  )}
+                >
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-3">
+                      <CompanyAvatar name={app.company_name} />
+                      <span className="font-semibold text-slate-900 dark:text-slate-100 truncate max-w-[160px]">
+                        {app.company_name}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <InlineStatusBadge
+                      applicationId={app.id}
+                      status={app.status}
+                      updatedBy={app.updated_by ?? 'ai'}
+                    />
+                  </td>
+                  <td className="px-5 py-4 hidden md:table-cell">
+                    <div>
+                      <p className="text-slate-700 dark:text-slate-300 truncate max-w-[280px]">
+                        {app.latest_email_subject ?? '—'}
+                      </p>
+                      <p className="text-xs text-slate-400 dark:text-slate-600 mt-0.5">
+                        {format(new Date(app.updated_at), 'M/d HH:mm', { locale: ja })}
+                      </p>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4 hidden lg:table-cell">
+                    {app.interview_date ? (
+                      <div className="flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 rounded-lg px-2.5 py-1.5 w-fit">
+                        <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="text-xs font-medium">
+                          {format(new Date(app.interview_date), 'M/d(E) HH:mm', { locale: ja })}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-slate-300 dark:text-slate-700 text-xs">—</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-4 hidden xl:table-cell">
+                    <EsDeadlineCell deadline={app.es_deadline ?? null} />
+                  </td>
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-1 justify-end">
+                      {showAffiliate && (
+                        <a
+                          href={AFFILIATE_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5 mr-1"
+                          title="エージェントに相談"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                      {onToggleActive && (
+                        isActive ? (
+                          <button
+                            onClick={() => onToggleActive(app.id, false)}
+                            className="text-slate-300 dark:text-slate-700 hover:text-amber-500 dark:hover:text-amber-400 transition-colors opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                            title="ピン留め解除"
+                          >
+                            <PinOff className="w-3.5 h-3.5" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => onToggleActive(app.id, true)}
+                            className={cn(
+                              'p-1 rounded transition-colors',
+                              activeCount >= 5
+                                ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                                : 'text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/30'
+                            )}
+                            title={activeCount >= 5 ? 'アクティブ枠が上限です（5/5）' : 'ピン留め'}
+                          >
+                            <Pin className="w-3.5 h-3.5" />
+                          </button>
+                        )
+                      )}
+                      <button
+                        onClick={() => onDelete(app.id, app.company_name)}
+                        className="text-slate-300 dark:text-slate-700 hover:text-rose-500 dark:hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                        aria-label="削除"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                      <Link
+                        href={`/dashboard/company/${app.id}`}
+                        className={cn(
+                          buttonVariants({ variant: 'ghost', size: 'sm' }),
+                          'opacity-0 group-hover:opacity-100 transition-opacity gap-0.5 px-2 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40'
+                        )}
+                      >
+                        詳細 <ChevronRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ── モバイル カードリスト（md未満） ─────────────────── */}
+      <div className="md:hidden space-y-2.5">
+        {apps.map((app) => {
+          const deadlineSoon = isDeadlineSoon(app.es_deadline)
+          const isActive = app.is_active !== false
+
+          return (
+            <div
+              key={app.id}
+              className={cn(
+                'bg-white dark:bg-slate-900/80 rounded-2xl border overflow-hidden shadow-sm transition-colors',
+                isInactiveSection
+                  ? 'opacity-60 border-slate-200 dark:border-slate-700/60'
+                  : deadlineSoon
+                  ? 'border-rose-200 dark:border-rose-800/40 bg-rose-50/20 dark:bg-rose-950/5'
+                  : 'border-slate-200 dark:border-slate-700/60'
+              )}
+            >
+              {/* メイン情報 */}
+              <div className="px-4 pt-4 pb-3 flex items-start gap-3">
+                <CompanyAvatar name={app.company_name} />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-slate-900 dark:text-slate-100 truncate text-[15px] mb-1.5">
+                    {app.company_name}
+                  </p>
                   <InlineStatusBadge
                     applicationId={app.id}
                     status={app.status}
                     updatedBy={app.updated_by ?? 'ai'}
                   />
-                </td>
-                <td className="px-5 py-4 hidden md:table-cell">
-                  <div>
-                    <p className="text-slate-700 dark:text-slate-300 truncate max-w-[280px]">
-                      {app.latest_email_subject ?? '—'}
+                  {app.latest_email_subject && (
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 truncate">
+                      {app.latest_email_subject}
                     </p>
-                    <p className="text-xs text-slate-400 dark:text-slate-600 mt-0.5">
-                      {format(new Date(app.updated_at), 'M/d HH:mm', { locale: ja })}
-                    </p>
-                  </div>
-                </td>
-                <td className="px-5 py-4 hidden lg:table-cell">
-                  {app.interview_date ? (
-                    <div className="flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 rounded-lg px-2.5 py-1.5 w-fit">
-                      <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
-                      <span className="text-xs font-medium">
-                        {format(new Date(app.interview_date), 'M/d(E) HH:mm', { locale: ja })}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-slate-300 dark:text-slate-700 text-xs">—</span>
                   )}
-                </td>
-                <td className="px-5 py-4 hidden xl:table-cell">
-                  <EsDeadlineCell deadline={app.es_deadline ?? null} />
-                </td>
-                <td className="px-5 py-4">
-                  <div className="flex items-center gap-1 justify-end">
-                    {showAffiliate && (
-                      <a
-                        href={AFFILIATE_URL}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5 mr-1"
-                        title="エージェントに相談"
+                  {app.interview_date && (
+                    <div className="flex items-center gap-1 mt-1.5 text-xs text-indigo-600 dark:text-indigo-400">
+                      <CalendarDays className="w-3 h-3 flex-shrink-0" />
+                      <span>{format(new Date(app.interview_date), 'M/d(E) HH:mm', { locale: ja })}</span>
+                    </div>
+                  )}
+                  {app.es_deadline && (
+                    <div className="mt-1">
+                      <EsDeadlineCell deadline={app.es_deadline} />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* アクションバー */}
+              <div className="px-3 pb-3 pt-1.5 flex items-center justify-between border-t border-slate-50 dark:border-slate-800/60">
+                <div className="flex items-center gap-0.5">
+                  {onToggleActive && (
+                    isActive ? (
+                      <button
+                        onClick={() => onToggleActive(app.id, false)}
+                        className="p-2.5 text-amber-500 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-xl transition-colors"
+                        title="ピン留め解除"
                       >
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
-
-                    {/* ピン留め / ピン留め解除ボタン（フリープランのみ） */}
-                    {onToggleActive && (
-                      isActive ? (
-                        <button
-                          onClick={() => onToggleActive(app.id, false)}
-                          className="text-slate-300 dark:text-slate-700 hover:text-amber-500 dark:hover:text-amber-400 transition-colors opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-amber-50 dark:hover:bg-amber-950/30"
-                          title="ピン留め解除（非アクティブにする）"
-                        >
-                          <PinOff className="w-3.5 h-3.5" />
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => onToggleActive(app.id, true)}
-                          className={cn(
-                            'p-1 rounded transition-colors',
-                            activeCount >= 5
-                              ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
-                              : 'text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/30'
-                          )}
-                          title={activeCount >= 5 ? 'アクティブ枠が上限です（5/5）' : 'ピン留めしてアクティブにする'}
-                        >
-                          <Pin className="w-3.5 h-3.5" />
-                        </button>
-                      )
-                    )}
-
-                    <button
-                      onClick={() => onDelete(app.id, app.company_name)}
-                      className="text-slate-300 dark:text-slate-700 hover:text-rose-500 dark:hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                      aria-label="削除"
+                        <PinOff className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => onToggleActive(app.id, true)}
+                        className={cn(
+                          'p-2.5 rounded-xl transition-colors',
+                          activeCount >= 5
+                            ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                            : 'text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/30'
+                        )}
+                        title={activeCount >= 5 ? 'アクティブ枠が上限です（5/5）' : 'ピン留め'}
+                      >
+                        <Pin className="w-4 h-4" />
+                      </button>
+                    )
+                  )}
+                  {showAffiliate && (
+                    <a
+                      href={AFFILIATE_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2.5 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-xl transition-colors"
+                      title="エージェントに相談"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                    <Link
-                      href={`/dashboard/company/${app.id}`}
-                      className={cn(
-                        buttonVariants({ variant: 'ghost', size: 'sm' }),
-                        'opacity-0 group-hover:opacity-100 transition-opacity gap-0.5 px-2 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40'
-                      )}
-                    >
-                      詳細 <ChevronRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  )}
+                  <button
+                    onClick={() => onDelete(app.id, app.company_name)}
+                    className="p-2.5 text-slate-300 dark:text-slate-700 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl transition-colors"
+                    aria-label="削除"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                <Link
+                  href={`/dashboard/company/${app.id}`}
+                  className="flex items-center gap-1 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 py-2 px-3 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors"
+                >
+                  詳細 <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </>
   )
 }

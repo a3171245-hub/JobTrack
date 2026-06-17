@@ -2,11 +2,11 @@
 
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import ThemeToggle from '@/components/ThemeToggle'
-import { Inbox, LayoutDashboard, CalendarDays, Mail, LogOut, Check, Settings } from 'lucide-react'
+import { Inbox, LayoutDashboard, CalendarDays, Mail, LogOut, Check, Settings, Menu, X } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 
 const NAV_ITEMS = [
@@ -28,6 +28,10 @@ export default function NavBar({
   const supabase = createClient()
   const [copiedUser, setCopiedUser] = useState(false)
   const [copiedDedicated, setCopiedDedicated] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  // ルート変更でドロワーを閉じる
+  useEffect(() => { setMobileOpen(false) }, [pathname])
 
   async function handleSignOut() {
     await supabase.auth.signOut()
@@ -51,6 +55,7 @@ export default function NavBar({
 
   return (
     <header className="bg-white/85 dark:bg-slate-950/85 backdrop-blur-md border-b border-slate-100 dark:border-slate-800/80 sticky top-0 z-50 transition-colors duration-200 drop-shadow-sm">
+      {/* ── メインバー ──────────────────────────────────────── */}
       <div className="relative max-w-[1400px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
 
         {/* ロゴ */}
@@ -63,7 +68,7 @@ export default function NavBar({
           </span>
         </Link>
 
-        {/* ナビ（中央） */}
+        {/* ナビゲーション（PC: sm以上、中央固定） */}
         <nav className="hidden sm:flex items-center gap-0.5 absolute left-1/2 -translate-x-1/2">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(href + '/')
@@ -86,7 +91,7 @@ export default function NavBar({
 
         {/* 右側 */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* 専用メールアドレス */}
+          {/* 専用メールアドレス (md以上) */}
           {dedicatedEmail && (
             <div className="hidden md:block">
               <button
@@ -106,7 +111,7 @@ export default function NavBar({
             </div>
           )}
 
-          {/* ユーザーメール */}
+          {/* ユーザーメール (sm以上) */}
           <div className="relative hidden sm:block">
             <button
               onClick={copyUserEmail}
@@ -125,17 +130,64 @@ export default function NavBar({
 
           <ThemeToggle />
 
+          {/* ハンバーガー（モバイルのみ） */}
+          <button
+            className="sm:hidden p-2 -mr-1 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            onClick={() => setMobileOpen((v) => !v)}
+            aria-label={mobileOpen ? 'メニューを閉じる' : 'メニューを開く'}
+            aria-expanded={mobileOpen}
+          >
+            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+
+          {/* ログアウト（sm以上） */}
           <Button
             variant="ghost"
             size="sm"
             onClick={handleSignOut}
-            className="gap-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="hidden sm:flex gap-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             <LogOut className="w-4 h-4" />
             <span className="hidden sm:inline">ログアウト</span>
           </Button>
         </div>
       </div>
+
+      {/* ── モバイル ドロワー（sm未満のみ） ─────────────────── */}
+      {mobileOpen && (
+        <nav className="sm:hidden border-t border-slate-100 dark:border-slate-800 animate-fade-in bg-white/95 dark:bg-slate-950/95">
+          <div className="pb-1">
+            {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+              const active = pathname === href || pathname.startsWith(href + '/')
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setMobileOpen(false)}
+                  className={`flex items-center gap-3 h-12 px-5 text-sm font-medium transition-colors ${
+                    active
+                      ? 'text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  {label}
+                </Link>
+              )
+            })}
+          </div>
+          <div className="border-t border-slate-100 dark:border-slate-800 px-5 py-3 space-y-1">
+            <p className="text-xs text-slate-400 dark:text-slate-600 py-1 truncate">{user.email}</p>
+            <button
+              onClick={() => { setMobileOpen(false); handleSignOut() }}
+              className="flex items-center gap-3 h-12 w-full text-left text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
+            >
+              <LogOut className="w-5 h-5 flex-shrink-0" />
+              ログアウト
+            </button>
+          </div>
+        </nav>
+      )}
     </header>
   )
 }

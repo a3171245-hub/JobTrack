@@ -66,36 +66,42 @@ interface ManualEvent {
 
 const MANUAL_EVENTS_KEY = 'jobtrack_calendar_events'
 
-const EVENT_CONFIG: Record<EventType, { label: string; chipClass: string; iconClass: string }> = {
+const EVENT_CONFIG: Record<EventType, { label: string; chipClass: string; iconClass: string; dotClass: string }> = {
   interview: {
     label: '面接',
     chipClass: 'bg-indigo-100 text-indigo-800 border-indigo-200',
     iconClass: 'text-indigo-600',
+    dotClass: 'bg-indigo-500',
   },
   event: {
     label: 'イベント',
     chipClass: 'bg-green-100 text-green-800 border-green-200',
     iconClass: 'text-green-600',
+    dotClass: 'bg-green-500',
   },
   test: {
     label: '適性検査',
     chipClass: 'bg-orange-100 text-orange-800 border-orange-200',
     iconClass: 'text-orange-600',
+    dotClass: 'bg-orange-500',
   },
   gd: {
     label: 'GD',
     chipClass: 'bg-purple-100 text-purple-800 border-purple-200',
     iconClass: 'text-purple-600',
+    dotClass: 'bg-purple-500',
   },
   deadline: {
     label: 'ES締切',
     chipClass: 'bg-red-100 text-red-800 border-red-200',
     iconClass: 'text-red-600',
+    dotClass: 'bg-red-500',
   },
   other: {
     label: 'その他',
     chipClass: 'bg-slate-100 text-slate-700 border-slate-200',
     iconClass: 'text-slate-500',
+    dotClass: 'bg-slate-400',
   },
 }
 
@@ -583,8 +589,8 @@ export default function CalendarView({ applications }: { applications: CalendarA
           )}
         </div>
 
-        {/* フィルターボタン */}
-        <div className="flex items-center gap-1.5 flex-wrap flex-1">
+        {/* フィルターボタン（モバイル: 横スクロール / PC: 折り返し） */}
+        <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto pb-0.5 md:pb-0 md:flex-wrap" style={{ scrollbarWidth: 'none' }}>
           {FILTER_OPTIONS.map(({ value, label }) => {
             const isActive = value === 'all' ? isAllActive : activeFilters.includes(value)
             const cfg = value !== 'all' ? EVENT_CONFIG[value as EventType] : null
@@ -615,10 +621,10 @@ export default function CalendarView({ applications }: { applications: CalendarA
           })}
         </div>
 
-        {/* 予定追加ボタン */}
+        {/* 予定追加ボタン（モバイル: h-11 で44px確保） */}
         <button
           onClick={() => setShowAddModal(true)}
-          className="h-9 px-3.5 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 transition-colors flex-shrink-0"
+          className="h-11 md:h-9 px-3.5 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 transition-colors flex-shrink-0"
         >
           <Plus className="w-4 h-4" />
           予定を追加
@@ -674,7 +680,8 @@ export default function CalendarView({ applications }: { applications: CalendarA
                     date={d}
                     onClick={() => setSelectedDay(d)}
                     className={[
-                      'min-h-[104px] p-2 text-left border-l border-slate-100 dark:border-slate-800 first:border-l-0 transition-colors select-none cursor-pointer',
+                      // モバイル: min-h-[52px] p-1 / PC: min-h-[104px] p-2
+                      'min-h-[52px] md:min-h-[104px] p-1 md:p-2 text-left border-l border-slate-100 dark:border-slate-800 first:border-l-0 transition-colors select-none cursor-pointer',
                       isCurrentDay
                         ? 'bg-indigo-50/40 dark:bg-indigo-900/20 hover:bg-indigo-50/70 dark:hover:bg-indigo-900/30'
                         : inMonth
@@ -682,15 +689,32 @@ export default function CalendarView({ applications }: { applications: CalendarA
                         : 'bg-slate-50/40 dark:bg-slate-800/20',
                     ].join(' ')}
                   >
-                    <div className="mb-1.5">
+                    {/* 日付番号: モバイル w-6 h-6 text-xs / PC w-7 h-7 text-sm */}
+                    <div className="mb-1">
                       <span
-                        className={`inline-flex w-7 h-7 items-center justify-center rounded-full text-sm transition-colors ${numberClass}`}
+                        className={`inline-flex w-6 h-6 md:w-7 md:h-7 items-center justify-center rounded-full text-xs md:text-sm transition-colors ${numberClass}`}
                       >
                         {format(d, 'd')}
                       </span>
                     </div>
 
-                    <div className="space-y-1">
+                    {/* モバイル: カラードット（最大4件） */}
+                    {dayEvents.length > 0 && (
+                      <div className="flex gap-0.5 flex-wrap md:hidden">
+                        {dayEvents.slice(0, 4).map((ev) => (
+                          <span
+                            key={ev.id}
+                            className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${EVENT_CONFIG[ev.type].dotClass}`}
+                          />
+                        ))}
+                        {dayEvents.length > 4 && (
+                          <span className="text-[8px] leading-none text-slate-400">…</span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* PC: フルチップ */}
+                    <div className="hidden md:block space-y-1">
                       {dayEvents.slice(0, 3).map((ev) => {
                         const cfg = EVENT_CONFIG[ev.type]
                         if (ev.is_manual) {

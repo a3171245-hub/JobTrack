@@ -84,7 +84,7 @@ function Inner({
             variant="outline"
             size="sm"
             onClick={() => setShareOpen(true)}
-            className="gap-1.5 h-9 px-3 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"
+            className="gap-1.5 h-11 md:h-9 px-3 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"
           >
             <Share2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">結果をシェア</span>

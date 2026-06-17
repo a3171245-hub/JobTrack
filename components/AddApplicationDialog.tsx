@@ -109,7 +109,7 @@ export default function AddApplicationDialog({
       <Button
         onClick={() => setOpen(true)}
         size="sm"
-        className="gap-1.5 h-9 px-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-md shadow-indigo-600/25 hover:shadow-indigo-600/35 hover:scale-[1.02] active:scale-[0.98] font-semibold"
+        className="gap-1.5 h-11 md:h-9 px-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-md shadow-indigo-600/25 hover:shadow-indigo-600/35 hover:scale-[1.02] active:scale-[0.98] font-semibold"
       >
         <Plus className="w-4 h-4" />
         企業を追加
