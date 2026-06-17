@@ -25,7 +25,7 @@ const FEATURES = [
   {
     icon: Zap,
     title: 'AIが選考メールを自動解析',
-    description: 'Groq / Llama がメール本文を解析し、書類選考・面接・内定・お祈りを自動で分類。手動入力は不要です。',
+    description: 'AIがメール本文を解析し、書類選考・面接・内定・お祈りを自動で分類。手動入力は不要です。',
   },
   {
     icon: BarChart3,
@@ -44,8 +44,8 @@ const FEATURES = [
   },
   {
     icon: Globe,
-    title: 'Cloudflareで確実なメール受信',
-    description: 'Cloudflare Email Routing でメールを確実に受信・処理。サーバーレスで安定動作し、メールの見落としがゼロに。',
+    title: '専用システムで確実なメール受信',
+    description: '専用インフラでメールを確実に受信・処理。安定した自動処理で、メールの見落としがゼロに。',
   },
 ]
 

@@ -178,11 +178,22 @@ export default function CompanyTable() {
 
   return (
     <div className="space-y-4">
-      {/* フリープラン アクティブ枠インジケーター */}
+      {/* フリープラン AI解析枠インジケーター */}
       {plan === 'free' && (
         <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-500">
           <Pin className="w-3.5 h-3.5 text-indigo-400" />
-          <span>アクティブ枠: <span className={cn('font-semibold', activeCount >= 5 ? 'text-amber-600 dark:text-amber-400' : 'text-indigo-600 dark:text-indigo-400')}>{activeCount} / 5</span></span>
+          <span>
+            AI解析対象:{' '}
+            <span className={cn('font-semibold', activeCount >= 5 ? 'text-amber-600 dark:text-amber-400' : 'text-indigo-600 dark:text-indigo-400')}>
+              {activeCount} / 5社
+            </span>
+          </span>
+          <span
+            className="ml-0.5 text-slate-300 dark:text-slate-600 cursor-help"
+            title="この枠内の企業のみ、届いたメールをAIが自動解析してステータスを更新します。枠を超えた企業は「未追跡」として保存されます。"
+          >
+            ？
+          </span>
         </div>
       )}
 
