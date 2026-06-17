@@ -22,6 +22,11 @@ function verifyWebhookToken(provided: string, expected: string): boolean {
   }
 }
 
+function extractSenderDomain(from: string): string {
+  const addr = (from.match(/<([^>]+)>/) ?? [])[1] ?? from
+  return addr.trim().split('@')[1]?.toLowerCase() ?? ''
+}
+
 function mapToApplicationStatus(
   aiStatus: string,
   emailType: string
@@ -41,7 +46,6 @@ function mapToApplicationStatus(
 }
 
 export async function POST(request: NextRequest) {
-  // Verify shared secret passed as ?token= query param when registering the Pub/Sub push subscription
   const secret = process.env.GMAIL_WEBHOOK_SECRET
   const provided = request.nextUrl.searchParams.get('token') ?? ''
   if (!secret || !verifyWebhookToken(provided, secret)) {
@@ -58,7 +62,6 @@ export async function POST(request: NextRequest) {
   const message = (body as { message?: { data?: string } }).message
   if (!message?.data) return NextResponse.json({ ok: true })
 
-  // Decode Pub/Sub notification
   let notification: { emailAddress?: string; historyId?: string }
   try {
     const decoded = Buffer.from(message.data, 'base64').toString('utf-8')
@@ -75,7 +78,6 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient()
 
-  // Find user by their linked Gmail address
   const { data: userRecord } = await supabase
     .from('users')
     .select(
@@ -89,13 +91,11 @@ export async function POST(request: NextRequest) {
   let accessToken = userRecord.gmail_access_token
   const startHistoryId = userRecord.gmail_history_id ?? historyId
 
-  // Fetch new messages via history.list
   let histRes = await gmailFetch(
     `/history?startHistoryId=${startHistoryId}&historyTypes=messageAdded`,
     accessToken
   )
 
-  // Refresh token on 401
   if (histRes.status === 401 && userRecord.gmail_refresh_token) {
     const newToken = await refreshAccessToken(userRecord.gmail_refresh_token)
     if (newToken) {
@@ -111,7 +111,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Always advance the stored historyId to avoid reprocessing
   await supabase
     .from('users')
     .update({ gmail_history_id: historyId })
@@ -141,26 +140,50 @@ export async function POST(request: NextRequest) {
       const msg = (await msgRes.json()) as GmailMessage
       if (!msg.payload) continue
 
-      // Skip sent mail
       if (msg.labelIds?.includes('SENT')) continue
 
       const subject = extractHeader(msg.payload, 'subject') || '(件名なし)'
       const from = extractHeader(msg.payload, 'from')
       const bodyText = extractBody(msg.payload)
 
-      // Skip emails with no content to analyze
       if (!subject && !bodyText) continue
 
-      let analysis
-      try {
-        analysis = await analyzeEmail(subject, bodyText, from)
-      } catch (err) {
-        console.error(`Gemini analysis failed for ${msgId}:`, err)
-        // Save as-is without status change
+      const senderDomain = extractSenderDomain(from)
+
+      // Check if sender domain is tracked
+      const { data: trackedApp } = senderDomain
+        ? await supabase
+            .from('applications')
+            .select('id, company_name')
+            .eq('user_id', userRecord.id)
+            .eq('sender_domain', senderDomain)
+            .maybeSingle()
+        : { data: null }
+
+      if (!trackedApp) {
+        // Untracked → save without AI
         await supabase.from('email_logs').insert({
           user_id: userRecord.id,
           subject,
           body_text: bodyText.slice(0, 10000),
+          sender: from,
+          email_type: 'other' as const,
+        })
+        continue
+      }
+
+      // Tracked → AI analysis
+      let analysis
+      try {
+        analysis = await analyzeEmail(subject, bodyText, from)
+      } catch (err) {
+        console.error(`Groq analysis failed for ${msgId}:`, err)
+        await supabase.from('email_logs').insert({
+          user_id: userRecord.id,
+          application_id: trackedApp.id,
+          subject,
+          body_text: bodyText.slice(0, 10000),
+          sender: from,
           email_type: 'other' as const,
         })
         continue
@@ -171,53 +194,27 @@ export async function POST(request: NextRequest) {
         analysis.email_type
       )
 
-      // Upsert application (match by company name)
-      const { data: existingApp } = await supabase
+      await supabase
         .from('applications')
-        .select('id')
-        .eq('user_id', userRecord.id)
-        .eq('company_name', analysis.company_name)
-        .maybeSingle()
-
-      let applicationId: string
-
-      if (existingApp) {
-        await supabase
-          .from('applications')
-          .update({
-            status: appStatus,
-            latest_email_subject: subject,
-            updated_by: 'ai',
-            ...(analysis.interview_date
-              ? { interview_date: analysis.interview_date }
-              : {}),
-            ...(analysis.event_date
-              ? { event_date: analysis.event_date }
-              : {}),
-          })
-          .eq('id', existingApp.id)
-        applicationId = existingApp.id
-      } else {
-        const { data: newApp } = await supabase
-          .from('applications')
-          .insert({
-            user_id: userRecord.id,
-            company_name: analysis.company_name,
-            status: appStatus,
-            latest_email_subject: subject,
-            interview_date: analysis.interview_date ?? null,
-            event_date: analysis.event_date ?? null,
-          })
-          .select('id')
-          .single()
-        applicationId = newApp!.id
-      }
+        .update({
+          status: appStatus,
+          latest_email_subject: subject,
+          updated_by: 'ai',
+          ...(analysis.interview_date
+            ? { interview_date: analysis.interview_date }
+            : {}),
+          ...(analysis.event_date
+            ? { event_date: analysis.event_date }
+            : {}),
+        })
+        .eq('id', trackedApp.id)
 
       await supabase.from('email_logs').insert({
         user_id: userRecord.id,
-        application_id: applicationId,
+        application_id: trackedApp.id,
         subject,
         body_text: bodyText.slice(0, 10000),
+        sender: from,
         email_type: analysis.email_type as 'selection' | 'event' | 'other',
       })
 

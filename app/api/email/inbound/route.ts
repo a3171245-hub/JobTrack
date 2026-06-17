@@ -36,7 +36,6 @@ function getClientIp(req: NextRequest): string {
 // ─── Timing-safe Bearer token verification ────────────────────────────
 function verifyBearer(authHeader: string, secret: string): boolean {
   const expected = `Bearer ${secret}`
-  // timingSafeEqual requires equal-length buffers
   if (Buffer.byteLength(authHeader) !== Buffer.byteLength(expected)) return false
   try {
     return timingSafeEqual(Buffer.from(authHeader), Buffer.from(expected))
@@ -45,7 +44,12 @@ function verifyBearer(authHeader: string, secret: string): boolean {
   }
 }
 
-// ─── Status mapper ────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────
+function extractSenderDomain(from: string): string {
+  const addr = (from.match(/<([^>]+)>/) ?? [])[1] ?? from
+  return addr.trim().split('@')[1]?.toLowerCase() ?? ''
+}
+
 function mapToApplicationStatus(
   aiStatus: string,
   emailType: string
@@ -97,7 +101,6 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient()
 
-  // Extract address from "Name <addr@domain>" or plain "addr@domain"
   const rawTo = to
   const toAddress = (rawTo.match(/<([^>]+)>/) ?? [, rawTo])[1]?.toLowerCase().trim() ?? ''
   console.log('[email/inbound] to (raw):', rawTo, '→ toAddress:', toAddress)
@@ -125,7 +128,32 @@ export async function POST(request: NextRequest) {
 
   const userId = userRecord.id
   const bodyText = emailBody
+  const senderDomain = extractSenderDomain(from)
 
+  // 4. Check if sender domain matches a tracked application
+  const { data: trackedApp } = senderDomain
+    ? await supabase
+        .from('applications')
+        .select('id, company_name')
+        .eq('user_id', userId)
+        .eq('sender_domain', senderDomain)
+        .maybeSingle()
+    : { data: null }
+
+  if (!trackedApp) {
+    // Untracked sender → save without AI analysis (tokens saved)
+    console.log('[email/inbound] untracked sender domain:', senderDomain, '— saving without AI')
+    await supabase.from('email_logs').insert({
+      user_id: userId,
+      subject,
+      body_text: bodyText.slice(0, 10000),
+      sender: from,
+      email_type: 'other' as const,
+    })
+    return NextResponse.json({ ok: true, processed: false, reason: 'untracked' })
+  }
+
+  // 5. Tracked application found → run AI analysis
   let analysis
   try {
     analysis = await analyzeEmail(subject, bodyText, from)
@@ -134,17 +162,14 @@ export async function POST(request: NextRequest) {
     console.error('[email/inbound] AI analysis failed:', err)
     await supabase.from('email_logs').insert({
       user_id: userId,
+      application_id: trackedApp.id,
       subject,
       body_text: bodyText.slice(0, 10000),
+      sender: from,
       email_type: 'other' as const,
     })
     return NextResponse.json({ ok: true, processed: false })
   }
-
-  const companyName =
-    typeof analysis?.company_name === 'string' && analysis.company_name.trim()
-      ? analysis.company_name.trim()
-      : subject.slice(0, 100)
 
   const appStatus = mapToApplicationStatus(
     analysis?.status ?? 'unknown',
@@ -152,60 +177,23 @@ export async function POST(request: NextRequest) {
   )
 
   try {
-    const { data: existingApp } = await supabase
+    await supabase
       .from('applications')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('company_name', companyName)
-      .maybeSingle()
-
-    let applicationId: string
-
-    if (existingApp?.id) {
-      await supabase
-        .from('applications')
-        .update({
-          status: appStatus,
-          latest_email_subject: subject,
-          updated_by: 'ai',
-          ...(analysis.interview_date ? { interview_date: analysis.interview_date } : {}),
-          ...(analysis.event_date ? { event_date: analysis.event_date } : {}),
-        })
-        .eq('id', existingApp.id)
-      applicationId = existingApp.id
-    } else {
-      const { data: newApp, error: insertError } = await supabase
-        .from('applications')
-        .insert({
-          user_id: userId,
-          company_name: companyName,
-          status: appStatus,
-          latest_email_subject: subject,
-          interview_date: analysis.interview_date ?? null,
-          event_date: analysis.event_date ?? null,
-        })
-        .select('id')
-        .single()
-
-      if (insertError || !newApp?.id) {
-        console.error('[email/inbound] application insert failed:', insertError)
-        await supabase.from('email_logs').insert({
-          user_id: userId,
-          subject,
-          body_text: bodyText.slice(0, 10000),
-          email_type: (analysis.email_type ?? 'other') as 'selection' | 'event' | 'other',
-        })
-        return NextResponse.json({ ok: true, processed: false })
-      }
-
-      applicationId = newApp.id
-    }
+      .update({
+        status: appStatus,
+        latest_email_subject: subject,
+        updated_by: 'ai',
+        ...(analysis.interview_date ? { interview_date: analysis.interview_date } : {}),
+        ...(analysis.event_date ? { event_date: analysis.event_date } : {}),
+      })
+      .eq('id', trackedApp.id)
 
     await supabase.from('email_logs').insert({
       user_id: userId,
-      application_id: applicationId,
+      application_id: trackedApp.id,
       subject,
       body_text: bodyText.slice(0, 10000),
+      sender: from,
       email_type: (analysis.email_type ?? 'other') as 'selection' | 'event' | 'other',
     })
 

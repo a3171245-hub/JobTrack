@@ -77,6 +77,7 @@ export default function AddApplicationDialog({
         gd_date: null,
         is_active: result.isActive,
         updated_by: 'ai',
+        sender_domain: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }

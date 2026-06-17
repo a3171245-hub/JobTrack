@@ -1,28 +1,32 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { format, parseISO } from 'date-fns'
 import { ja } from 'date-fns/locale'
-import { Mail, X, CalendarDays, Check } from 'lucide-react'
+import { Mail, X, CalendarDays, Check, Search, BookmarkPlus, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { trackCompany } from '@/app/mail/actions'
 
 type EmailLog = {
   id: string
   application_id: string | null
   subject: string | null
   body_text: string | null
+  sender: string | null
   received_at: string
   email_type: string
 }
 
-// ─── Unified badge config ─────────────────────────────────────────
-// All badge classes include both light and dark variants for consistency.
+type TrackFilter = 'all' | 'tracked' | 'untracked'
+type TypeFilter = 'all' | 'selection' | 'event' | 'other'
+type ReadFilter = 'all' | 'unread'
+
+// ─── Badge config ─────────────────────────────────────────────────
 const EMAIL_TYPE_CONFIG: Record<string, {
   label: string
-  // pill badge (list + modal header)
   badge: string
-  // unread dot
   dot: string
-  // left accent stripe (unread only)
   stripe: string
 }> = {
   selection: {
@@ -50,7 +54,6 @@ const EMAIL_TYPE_CONFIG: Record<string, {
     stripe: 'border-l-sky-400',
   },
 }
-
 const FALLBACK_CONFIG = EMAIL_TYPE_CONFIG.other
 
 const READ_KEY = 'jobtrack_read_mails'
@@ -66,11 +69,7 @@ function saveSet(key: string, set: Set<string>) {
 
 // ─── Calendar Prompt ──────────────────────────────────────────────
 function CalendarPrompt({
-  companyName,
-  date,
-  dateType,
-  userId,
-  onDone,
+  companyName, date, dateType, userId, onDone,
 }: {
   companyName: string
   date: string
@@ -79,7 +78,6 @@ function CalendarPrompt({
   onDone: () => void
 }) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'done'>('idle')
-
   const label = dateType === 'interview' ? '面接' : '説明会・イベント'
   const formatted = (() => {
     try { return format(parseISO(date), 'yyyy年M月d日(E) HH:mm', { locale: ja }) } catch { return date }
@@ -91,12 +89,7 @@ function CalendarPrompt({
       await fetch('/api/calendar/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: userId,
-          title: `${companyName} — ${label}`,
-          date,
-          type: dateType,
-        }),
+        body: JSON.stringify({ user_id: userId, title: `${companyName} — ${label}`, date, type: dateType }),
       })
       setStatus('done')
       setTimeout(onDone, 800)
@@ -144,12 +137,7 @@ function CalendarPrompt({
 
 // ─── Mail Modal ───────────────────────────────────────────────────
 function MailModal({
-  log,
-  companyName,
-  calendarDate,
-  calendarType,
-  userId,
-  onClose,
+  log, companyName, calendarDate, calendarType, userId, onClose,
 }: {
   log: EmailLog
   companyName: string
@@ -181,7 +169,6 @@ function MailModal({
         className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/60 rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col animate-fade-in-up"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-start justify-between p-6 border-b border-slate-100 dark:border-slate-700/60">
           <div className="flex-1 min-w-0 pr-4">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -196,6 +183,11 @@ function MailModal({
             <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
               {format(new Date(log.received_at), 'yyyy年M月d日(E) HH:mm', { locale: ja })}
             </p>
+            {log.sender && (
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 truncate">
+                送信元: {log.sender}
+              </p>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -205,7 +197,6 @@ function MailModal({
           </button>
         </div>
 
-        {/* Calendar prompt */}
         {calendarDate && !calendarHandled && (
           <CalendarPrompt
             companyName={companyName}
@@ -216,7 +207,6 @@ function MailModal({
           />
         )}
 
-        {/* Body */}
         <div className="overflow-y-auto p-6">
           <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
             {log.body_text ?? '（本文なし）'}
@@ -227,6 +217,25 @@ function MailModal({
   )
 }
 
+// ─── Filter Pill ──────────────────────────────────────────────────
+function FilterPill({
+  active, onClick, children,
+}: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={[
+        'h-8 px-3 rounded-full border text-xs font-medium whitespace-nowrap transition-all',
+        active
+          ? 'bg-indigo-600 text-white border-indigo-600 dark:bg-indigo-500 dark:border-indigo-500'
+          : 'bg-white dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700',
+      ].join(' ')}
+    >
+      {children}
+    </button>
+  )
+}
+
 // ─── Main Component ───────────────────────────────────────────────
 export default function MailList({
   logs,
@@ -234,15 +243,29 @@ export default function MailList({
   appDateMap = {},
   userId = '',
   freeLimitHit = false,
+  plan = 'free',
+  activeCount = 0,
 }: {
   logs: EmailLog[]
   companyMap: Record<string, string>
   appDateMap?: Record<string, { interview_date: string | null; event_date: string | null }>
   userId?: string
   freeLimitHit?: boolean
+  plan?: 'free' | 'premium'
+  activeCount?: number
 }) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [trackingId, setTrackingId] = useState<string | null>(null)
+
   const [selectedLog, setSelectedLog] = useState<EmailLog | null>(null)
   const [readIds, setReadIds] = useState<Set<string>>(new Set())
+
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState('')
+  const [trackFilter, setTrackFilter] = useState<TrackFilter>('all')
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
+  const [readFilter, setReadFilter] = useState<ReadFilter>('all')
 
   useEffect(() => {
     setReadIds(loadSet(READ_KEY))
@@ -257,6 +280,72 @@ export default function MailList({
       saveSet(READ_KEY, next)
     }
   }
+
+  function handleTrack(e: React.MouseEvent, logId: string) {
+    e.stopPropagation()
+    if (plan === 'free' && activeCount >= 5) {
+      toast.error('アクティブ枠が上限です', {
+        description: 'ダッシュボードで追跡中の企業を解除してから追加してください。',
+      })
+      return
+    }
+    setTrackingId(logId)
+    startTransition(async () => {
+      try {
+        const result = await trackCompany(logId)
+        if ('limitReached' in result) {
+          toast.error('アクティブ枠が上限です（5/5）', {
+            description: 'ダッシュボードで他の企業の追跡を解除してください。',
+          })
+          return
+        }
+        if ('error' in result) {
+          toast.error('追跡の開始に失敗しました')
+          return
+        }
+        toast.success(`${result.companyName} の追跡を開始しました`, {
+          description: result.retroCount > 0
+            ? `過去 ${result.retroCount} 件のメールを遡って解析しました`
+            : undefined,
+        })
+        router.refresh()
+      } finally {
+        setTrackingId(null)
+      }
+    })
+  }
+
+  // ── Client-side filtering ─────────────────────────────────────
+  const filteredLogs = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    return logs.filter((log) => {
+      // Track filter
+      if (trackFilter === 'tracked' && !log.application_id) return false
+      if (trackFilter === 'untracked' && log.application_id) return false
+
+      // Type filter
+      if (typeFilter !== 'all' && log.email_type !== typeFilter) return false
+
+      // Read filter
+      if (readFilter === 'unread' && readIds.has(log.id)) return false
+
+      // Search
+      if (q) {
+        const companyName = log.application_id
+          ? (companyMap[log.application_id] ?? '').toLowerCase()
+          : ''
+        const subject = (log.subject ?? '').toLowerCase()
+        const sender = (log.sender ?? '').toLowerCase()
+        if (!companyName.includes(q) && !subject.includes(q) && !sender.includes(q)) {
+          return false
+        }
+      }
+
+      return true
+    })
+  }, [logs, trackFilter, typeFilter, readFilter, searchQuery, readIds, companyMap])
+
+  const hasActiveFilters = searchQuery || trackFilter !== 'all' || typeFilter !== 'all' || readFilter !== 'all'
 
   if (logs.length === 0) {
     return (
@@ -274,88 +363,194 @@ export default function MailList({
 
   return (
     <>
+      {/* ── Search & Filters ────────────────────────────────── */}
+      <div className="space-y-2.5 mb-4">
+        {/* Search bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="件名・企業名・送信元で検索..."
+            className="w-full h-10 pl-9 pr-9 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-colors"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Filter pills */}
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 flex-wrap">
+          {/* Track filter */}
+          <FilterPill active={trackFilter === 'all'} onClick={() => setTrackFilter('all')}>すべて</FilterPill>
+          <FilterPill active={trackFilter === 'tracked'} onClick={() => setTrackFilter('tracked')}>追跡中</FilterPill>
+          <FilterPill active={trackFilter === 'untracked'} onClick={() => setTrackFilter('untracked')}>未追跡</FilterPill>
+
+          <span className="w-px h-5 bg-slate-200 dark:bg-slate-700 self-center mx-1" />
+
+          {/* Type filter */}
+          <FilterPill active={typeFilter === 'selection'} onClick={() => setTypeFilter(typeFilter === 'selection' ? 'all' : 'selection')}>選考</FilterPill>
+          <FilterPill active={typeFilter === 'event'} onClick={() => setTypeFilter(typeFilter === 'event' ? 'all' : 'event')}>イベント</FilterPill>
+          <FilterPill active={typeFilter === 'other'} onClick={() => setTypeFilter(typeFilter === 'other' ? 'all' : 'other')}>その他</FilterPill>
+
+          <span className="w-px h-5 bg-slate-200 dark:bg-slate-700 self-center mx-1" />
+
+          {/* Read filter */}
+          <FilterPill active={readFilter === 'unread'} onClick={() => setReadFilter(readFilter === 'unread' ? 'all' : 'unread')}>未読のみ</FilterPill>
+
+          {hasActiveFilters && (
+            <button
+              onClick={() => { setSearchQuery(''); setTrackFilter('all'); setTypeFilter('all'); setReadFilter('all') }}
+              className="h-8 px-2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+            >
+              クリア
+            </button>
+          )}
+        </div>
+
+        {hasActiveFilters && (
+          <p className="text-xs text-slate-400 dark:text-slate-600">
+            {filteredLogs.length} / {logs.length} 件
+          </p>
+        )}
+      </div>
+
       {freeLimitHit && (
         <div className="mb-3 px-4 py-2.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 rounded-xl text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
           フリープランでは最新20件まで表示されます。プレミアムプランで制限が解除されます。
         </div>
       )}
-      <div className="space-y-2.5">
-        {logs.map((log) => {
-          const companyName = log.application_id
-            ? companyMap[log.application_id] ?? '企業未紐付け'
-            : '企業未紐付け'
-          const cfg = EMAIL_TYPE_CONFIG[log.email_type] ?? FALLBACK_CONFIG
-          const isRead = readIds.has(log.id)
 
-          return (
-            <button
-              key={log.id}
-              onClick={() => open(log)}
-              className={[
-                'group w-full text-left rounded-xl px-4 py-3.5 flex items-start gap-3',
-                'hover:-translate-y-0.5 transition-all duration-200',
-                // Left accent stripe: visible only when unread
-                'border-l-4',
-                isRead
-                  ? [
-                      'bg-white dark:bg-white/5',
-                      'border border-slate-100 dark:border-white/8',
-                      'border-l-transparent',
-                      'hover:bg-slate-50 dark:hover:bg-white/10',
-                      'hover:shadow-md',
-                    ].join(' ')
-                  : [
-                      'bg-indigo-50/60 dark:bg-indigo-950/30',
-                      'border border-indigo-200/70 dark:border-indigo-700/40',
-                      cfg.stripe,
-                      'hover:bg-indigo-50 dark:hover:bg-indigo-950/40',
-                      'hover:shadow-lg hover:shadow-indigo-100/50 dark:hover:shadow-indigo-950/30',
-                    ].join(' '),
-              ].join(' ')}
-            >
-              <div className="flex-1 min-w-0">
-                {/* Row 1: type badge · company · date · 未読バッジ */}
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${cfg.badge}`}>
-                    {cfg.label}
-                  </span>
-                  <span className={`text-sm truncate max-w-[180px] ${
-                    isRead
-                      ? 'font-medium text-slate-500 dark:text-white/50'
-                      : 'font-bold text-slate-900 dark:text-white'
-                  }`}>
-                    {companyName}
-                  </span>
-                  <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
-                    {!isRead && (
-                      <span className="text-[10px] font-bold tracking-wide px-1.5 py-0.5 rounded-md bg-indigo-600 dark:bg-indigo-500 text-white leading-none">
-                        未読
-                      </span>
-                    )}
-                    <span className={`text-xs whitespace-nowrap ${
-                      isRead
-                        ? 'text-slate-300 dark:text-white/25'
-                        : 'text-slate-500 dark:text-indigo-300/80'
-                    }`}>
-                      {format(new Date(log.received_at), 'M/d HH:mm', { locale: ja })}
-                    </span>
-                  </div>
-                </div>
+      {/* ── Mail list ───────────────────────────────────────── */}
+      {filteredLogs.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl">
+          <Mail className="w-8 h-8 text-slate-300 dark:text-slate-600 mb-3" />
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">該当するメールが見つかりません</p>
+          <button
+            onClick={() => { setSearchQuery(''); setTrackFilter('all'); setTypeFilter('all'); setReadFilter('all') }}
+            className="mt-3 text-xs text-indigo-500 hover:text-indigo-700 dark:hover:text-indigo-300"
+          >
+            フィルターをクリア
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          {filteredLogs.map((log) => {
+            const companyName = log.application_id
+              ? companyMap[log.application_id] ?? '企業未紐付け'
+              : '企業未紐付け'
+            const isTracked = !!log.application_id
+            const cfg = EMAIL_TYPE_CONFIG[log.email_type] ?? FALLBACK_CONFIG
+            const isRead = readIds.has(log.id)
+            const isThisTracking = trackingId === log.id
 
-                {/* Row 2: subject */}
-                <p className={`text-sm truncate ${
+            return (
+              <div
+                key={log.id}
+                className={[
+                  'group relative rounded-xl border-l-4 transition-all duration-200 hover:-translate-y-0.5',
                   isRead
-                    ? 'text-slate-400 dark:text-white/35'
-                    : 'font-semibold text-slate-800 dark:text-white/95'
-                }`}>
-                  {log.subject ?? '（件名なし）'}
-                </p>
-              </div>
-            </button>
-          )
-        })}
-      </div>
+                    ? 'bg-white dark:bg-white/5 border border-slate-100 dark:border-white/8 border-l-transparent hover:bg-slate-50 dark:hover:bg-white/10 hover:shadow-md'
+                    : `bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200/70 dark:border-indigo-700/40 ${cfg.stripe} hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:shadow-lg hover:shadow-indigo-100/50`,
+                ].join(' ')}
+              >
+                <button
+                  onClick={() => open(log)}
+                  className="w-full text-left px-4 py-3.5 flex items-start gap-3"
+                >
+                  <div className="flex-1 min-w-0 pr-16">
+                    {/* Row 1 */}
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${cfg.badge}`}>
+                        {cfg.label}
+                      </span>
+                      <span className={`text-sm truncate max-w-[180px] ${
+                        isRead
+                          ? 'font-medium text-slate-500 dark:text-white/50'
+                          : 'font-bold text-slate-900 dark:text-white'
+                      }`}>
+                        {companyName}
+                      </span>
+                      <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
+                        {!isRead && (
+                          <span className="text-[10px] font-bold tracking-wide px-1.5 py-0.5 rounded-md bg-indigo-600 dark:bg-indigo-500 text-white leading-none">
+                            未読
+                          </span>
+                        )}
+                        <span className={`text-xs whitespace-nowrap ${
+                          isRead
+                            ? 'text-slate-300 dark:text-white/25'
+                            : 'text-slate-500 dark:text-indigo-300/80'
+                        }`}>
+                          {format(new Date(log.received_at), 'M/d HH:mm', { locale: ja })}
+                        </span>
+                      </div>
+                    </div>
 
+                    {/* Row 2: subject */}
+                    <p className={`text-sm truncate ${
+                      isRead
+                        ? 'text-slate-400 dark:text-white/35'
+                        : 'font-semibold text-slate-800 dark:text-white/95'
+                    }`}>
+                      {log.subject ?? '（件名なし）'}
+                    </p>
+
+                    {/* Row 3: sender (untracked only) */}
+                    {!isTracked && log.sender && (
+                      <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 truncate">
+                        {log.sender}
+                      </p>
+                    )}
+                  </div>
+                </button>
+
+                {/* 追跡ボタン (untracked only) */}
+                {!isTracked && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <button
+                      onClick={(e) => handleTrack(e, log.id)}
+                      disabled={isThisTracking || isPending}
+                      className={[
+                        'flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-medium border transition-all',
+                        isThisTracking
+                          ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-400 border-indigo-200 dark:border-indigo-700 cursor-wait'
+                          : 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 border-indigo-200 dark:border-indigo-700/60 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:border-indigo-400',
+                      ].join(' ')}
+                      title="この企業を追跡する"
+                    >
+                      {isThisTracking ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <BookmarkPlus className="w-3.5 h-3.5" />
+                      )}
+                      <span className="hidden sm:inline">
+                        {isThisTracking ? '解析中…' : '追跡する'}
+                      </span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* 処理中オーバーレイ表示 */}
+      {isPending && trackingId && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900 dark:bg-slate-800 text-white text-sm px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2.5">
+          <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
+          <span>過去のメールを遡って解析中…（数秒かかる場合があります）</span>
+        </div>
+      )}
+
+      {/* Mail modal */}
       {selectedLog && (() => {
         const appId = selectedLog.application_id
         const dates = appId ? appDateMap[appId] : null

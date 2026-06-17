@@ -136,10 +136,15 @@ export default function CompanyTable() {
   }
 
   async function handleDelete(id: string, name: string) {
-    if (!confirm(`${name} を削除しますか？`)) return
+    if (!confirm(
+      `「${name}」の追跡を解除しますか？\n\n` +
+      '・選考ステータス・メモ・カレンダー予定が削除されます\n' +
+      '・受信済みメールは保持されますが「未追跡」状態に戻ります\n' +
+      '・フリープランのアクティブ枠が1つ増えます'
+    )) return
     removeApplication(id)
-    await deleteApplication(id).catch(() => toast.error('削除に失敗しました'))
-    toast.success('削除しました')
+    await deleteApplication(id).catch(() => toast.error('追跡解除に失敗しました'))
+    toast.success(`${name} の追跡を解除しました`)
   }
 
   const filteredActive = activeApps
@@ -444,7 +449,8 @@ function TableBody({
                       <button
                         onClick={() => onDelete(app.id, app.company_name)}
                         className="text-slate-300 dark:text-slate-700 hover:text-rose-500 dark:hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                        aria-label="削除"
+                        aria-label="追跡解除"
+                        title="追跡を解除"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

@@ -123,6 +123,31 @@ export async function deleteApplication(applicationId: string) {
   if (!userId) throw new Error('unauthorized')
 
   const supabase = createAdminClient()
+
+  // Fetch company name for calendar cleanup
+  const { data: app } = await supabase
+    .from('applications')
+    .select('company_name')
+    .eq('id', applicationId)
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (!app) throw new Error('not_found')
+
+  // Null out email_logs.application_id (keep emails, remove link)
+  await supabase
+    .from('email_logs')
+    .update({ application_id: null })
+    .eq('application_id', applicationId)
+    .eq('user_id', userId)
+
+  // Delete calendar events associated with this company (title prefix match)
+  await supabase
+    .from('calendar_events')
+    .delete()
+    .eq('user_id', userId)
+    .like('title', `${app.company_name} —%`)
+
   const { error } = await supabase
     .from('applications')
     .delete()

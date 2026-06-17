@@ -83,6 +83,7 @@ export interface Database {
           gd_date: string | null
           is_active: boolean
           updated_by: 'ai' | 'manual'
+          sender_domain: string | null
           created_at: string
           updated_at: string
         }
@@ -104,6 +105,7 @@ export interface Database {
           gd_date?: string | null
           is_active?: boolean
           updated_by?: 'ai' | 'manual'
+          sender_domain?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -125,6 +127,7 @@ export interface Database {
           gd_date?: string | null
           is_active?: boolean
           updated_by?: 'ai' | 'manual'
+          sender_domain?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -167,6 +170,7 @@ export interface Database {
           application_id: string | null
           subject: string | null
           body_text: string | null
+          sender: string | null
           received_at: string
           email_type: EmailType
         }
@@ -176,6 +180,7 @@ export interface Database {
           application_id?: string | null
           subject?: string | null
           body_text?: string | null
+          sender?: string | null
           received_at?: string
           email_type?: EmailType
         }
@@ -185,6 +190,7 @@ export interface Database {
           application_id?: string | null
           subject?: string | null
           body_text?: string | null
+          sender?: string | null
           received_at?: string
           email_type?: EmailType
         }

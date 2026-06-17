@@ -41,7 +41,7 @@ export default async function MailPage() {
       .limit(FREE_MAIL_LIMIT + 1),
     supabase
       .from('applications')
-      .select('id, company_name, interview_date, event_date')
+      .select('id, company_name, interview_date, event_date, is_active')
       .eq('user_id', user.id),
     supabase
       .from('users')
@@ -73,6 +73,7 @@ export default async function MailPage() {
   const appDateMap = Object.fromEntries(
     apps.map((a) => [a.id, { interview_date: a.interview_date, event_date: a.event_date }])
   )
+  const activeCount = apps.filter((a) => a.is_active !== false).length
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-gradient-to-br dark:from-indigo-950 dark:via-[#1e1b4b] dark:to-violet-900">
@@ -90,6 +91,8 @@ export default async function MailPage() {
           appDateMap={appDateMap}
           userId={user.id}
           freeLimitHit={freeLimitHit}
+          plan={plan}
+          activeCount={activeCount}
         />
       </main>
     </div>

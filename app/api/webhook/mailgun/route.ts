@@ -7,7 +7,6 @@ import type { ApplicationStatus } from '@/types/database'
 export const maxDuration = 60
 import type { Database } from '@/types/database'
 
-// Mailgun署名を検証（timing-safe）
 function verifyMailgunSignature(
   signingKey: string,
   timestamp: string,
@@ -19,7 +18,6 @@ function verifyMailgunSignature(
     .createHmac('sha256', signingKey)
     .update(value)
     .digest('hex')
-  // Use timing-safe comparison to prevent timing attacks
   if (Buffer.byteLength(hmac) !== Buffer.byteLength(signature)) return false
   try {
     return crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(signature))
@@ -28,7 +26,11 @@ function verifyMailgunSignature(
   }
 }
 
-// OpenAIのstatusをApplicationStatusにマッピング
+function extractSenderDomain(from: string): string {
+  const addr = (from.match(/<([^>]+)>/) ?? [])[1] ?? from
+  return addr.trim().split('@')[1]?.toLowerCase() ?? ''
+}
+
 function mapToApplicationStatus(
   aiStatus: string,
   emailType: string
@@ -55,12 +57,10 @@ export async function POST(req: NextRequest) {
   const signature = formData.get('signature') as string
   const signingKey = process.env.MAILGUN_SIGNING_KEY!
 
-  // 署名は常に検証（環境に関わらず）
   if (!signingKey || !verifyMailgunSignature(signingKey, timestamp, token, signature)) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
-  // Replay attack prevention — reject requests older than 5 minutes
   const tsNum = parseInt(timestamp, 10)
   if (!tsNum || Math.abs(Date.now() / 1000 - tsNum) > 300) {
     return NextResponse.json({ error: 'Request expired' }, { status: 401 })
@@ -75,13 +75,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No recipient' }, { status: 400 })
   }
 
-  // service_role で直接DBアクセス（Webhookはセッション外）
   const supabase = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // dedicated_emailから対象ユーザーを特定
   const { data: user } = await supabase
     .from('users')
     .select('id')
@@ -89,79 +87,75 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (!user) {
-    // 宛先が登録ユーザーでなければ無視（200を返してMailgunに再送させない）
     return NextResponse.json({ message: 'User not found, ignored' })
   }
 
-  // OpenAIでメール解析
-  let analysis
-  try {
-    analysis = await analyzeEmail(subject, bodyPlain, sender)
-  } catch (err) {
-    console.error('OpenAI analysis failed:', err)
-    // 解析失敗でもメールログは保存
+  const senderDomain = extractSenderDomain(sender ?? '')
+
+  // Check if sender domain is tracked
+  const { data: trackedApp } = senderDomain
+    ? await supabase
+        .from('applications')
+        .select('id, company_name')
+        .eq('user_id', user.id)
+        .eq('sender_domain', senderDomain)
+        .maybeSingle()
+    : { data: null }
+
+  if (!trackedApp) {
+    // Untracked → save without AI
     const { data: log } = await supabase
       .from('email_logs')
       .insert({
         user_id: user.id,
         subject,
         body_text: bodyPlain.slice(0, 10000),
+        sender: sender ?? null,
         email_type: 'other',
       })
       .select('id')
       .single()
+    return NextResponse.json({ message: 'Saved untracked', log_id: log?.id })
+  }
 
-    return NextResponse.json({ message: 'Saved without analysis', log_id: log?.id })
+  // Tracked → AI analysis
+  let analysis
+  try {
+    analysis = await analyzeEmail(subject, bodyPlain, sender ?? '')
+  } catch (err) {
+    console.error('Groq analysis failed:', err)
+    await supabase.from('email_logs').insert({
+      user_id: user.id,
+      application_id: trackedApp.id,
+      subject,
+      body_text: bodyPlain.slice(0, 10000),
+      sender: sender ?? null,
+      email_type: 'other',
+    })
+    return NextResponse.json({ message: 'Saved without analysis', company: trackedApp.company_name })
   }
 
   const appStatus = mapToApplicationStatus(analysis.status, analysis.email_type)
 
-  // applications をupsert（同一企業名なら更新）
-  const { data: existingApp } = await supabase
+  await supabase
     .from('applications')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('company_name', analysis.company_name)
-    .single()
+    .update({
+      status: appStatus,
+      latest_email_subject: subject,
+      updated_by: 'ai',
+      ...(analysis.interview_date && { interview_date: analysis.interview_date }),
+      ...(analysis.event_date && { event_date: analysis.event_date }),
+    })
+    .eq('id', trackedApp.id)
 
-  let applicationId: string
-
-  if (existingApp) {
-    await supabase
-      .from('applications')
-      .update({
-        status: appStatus,
-        latest_email_subject: subject,
-        updated_by: 'ai',
-        ...(analysis.interview_date && { interview_date: analysis.interview_date }),
-        ...(analysis.event_date && { event_date: analysis.event_date }),
-      })
-      .eq('id', existingApp.id)
-    applicationId = existingApp.id
-  } else {
-    const { data: newApp } = await supabase
-      .from('applications')
-      .insert({
-        user_id: user.id,
-        company_name: analysis.company_name,
-        status: appStatus,
-        latest_email_subject: subject,
-        interview_date: analysis.interview_date ?? null,
-        event_date: analysis.event_date ?? null,
-      })
-      .select('id')
-      .single()
-    applicationId = newApp!.id
-  }
-
-  // email_logs に保存
   await supabase.from('email_logs').insert({
     user_id: user.id,
-    application_id: applicationId,
+    application_id: trackedApp.id,
     subject,
     body_text: bodyPlain.slice(0, 10000),
+    sender: sender ?? null,
     email_type: analysis.email_type,
   })
 
-  return NextResponse.json({ message: 'OK', company: analysis.company_name, status: appStatus })
+  return NextResponse.json({ message: 'OK', company: trackedApp.company_name, status: appStatus })
 }
