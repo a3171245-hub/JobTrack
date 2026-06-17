@@ -20,11 +20,21 @@ export async function updateApplicationStatus(
   if (!userId) throw new Error('unauthorized')
 
   const supabase = createAdminClient()
-  const { error } = await supabase
+
+  // Try with updated_by; fall back without it if column doesn't exist yet (migration 013 pending)
+  let { error } = await supabase
     .from('applications')
     .update({ status, updated_by: 'manual' })
     .eq('id', applicationId)
     .eq('user_id', userId)
+
+  if (error) {
+    ;({ error } = await supabase
+      .from('applications')
+      .update({ status })
+      .eq('id', applicationId)
+      .eq('user_id', userId))
+  }
 
   if (error) {
     console.error('updateStatus error:', error)
@@ -63,7 +73,8 @@ export async function addApplication(
   const sanitizedName = companyName.trim().slice(0, 200)
   const sanitizedNotes = notes ? notes.trim().slice(0, 2000) : null
 
-  const { data, error } = await supabase
+  // Try with is_active; fall back without it if column doesn't exist yet (migration 013 pending)
+  let result = await supabase
     .from('applications')
     .insert({
       user_id: userId,
@@ -75,10 +86,25 @@ export async function addApplication(
     .select('id')
     .single()
 
-  if (error) {
-    console.error('addApplication error:', error)
+  if (result.error) {
+    result = await supabase
+      .from('applications')
+      .insert({
+        user_id: userId,
+        company_name: sanitizedName,
+        status: 'applied',
+        notes: sanitizedNotes,
+      })
+      .select('id')
+      .single()
+  }
+
+  if (result.error) {
+    console.error('addApplication error:', result.error)
     return null
   }
+
+  const data = result.data
 
   return { id: data.id, isActive }
 }

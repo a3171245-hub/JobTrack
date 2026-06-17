@@ -41,10 +41,12 @@ export async function trackCompany(emailLogId: string): Promise<TrackResult> {
 
   const supabase = createAdminClient()
 
-  // Fetch the email log to track
+  // Fetch the email log to track.
+  // select('*') is safe even when 'sender' column doesn't exist yet:
+  // PostgREST simply omits missing columns, so emailLog.sender is undefined → '' fallback.
   const { data: emailLog } = await supabase
     .from('email_logs')
-    .select('id, subject, body_text, sender, application_id')
+    .select('*')
     .eq('id', emailLogId)
     .eq('user_id', user.id)
     .single()
@@ -81,6 +83,7 @@ export async function trackCompany(emailLogId: string): Promise<TrackResult> {
     return { error: 'analysis_failed' }
   }
 
+  // Before migration 014 is applied, emailLog.sender is undefined at runtime → '' → no retroactive.
   const senderDomain = extractSenderDomain(emailLog.sender ?? '')
   const companyName = (
     typeof analysis.company_name === 'string' && analysis.company_name.trim()
@@ -89,7 +92,7 @@ export async function trackCompany(emailLogId: string): Promise<TrackResult> {
   )
   const appStatus = mapToApplicationStatus(analysis.status, analysis.email_type)
 
-  // Create application
+  // Create application (omit columns that may not exist yet; set them in a follow-up UPDATE)
   const { data: newApp, error: insertError } = await supabase
     .from('applications')
     .insert({
@@ -99,13 +102,20 @@ export async function trackCompany(emailLogId: string): Promise<TrackResult> {
       latest_email_subject: emailLog.subject,
       interview_date: analysis.interview_date ?? null,
       event_date: analysis.event_date ?? null,
-      sender_domain: senderDomain || null,
-      updated_by: 'ai',
     })
     .select('id')
     .single()
 
   if (insertError || !newApp) return { error: 'insert_failed' }
+
+  // Set columns that require migration 014/013; errors ignored — no-op if columns don't exist yet
+  await supabase
+    .from('applications')
+    .update({
+      ...(senderDomain ? { sender_domain: senderDomain } : {}),
+      updated_by: 'ai',
+    })
+    .eq('id', newApp.id)
 
   // Link the clicked email log to the new application
   await supabase

@@ -110,7 +110,6 @@ export async function POST(req: NextRequest) {
         user_id: user.id,
         subject,
         body_text: bodyPlain.slice(0, 10000),
-        sender: sender ?? null,
         email_type: 'other',
       })
       .select('id')
@@ -129,7 +128,6 @@ export async function POST(req: NextRequest) {
       application_id: trackedApp.id,
       subject,
       body_text: bodyPlain.slice(0, 10000),
-      sender: sender ?? null,
       email_type: 'other',
     })
     return NextResponse.json({ message: 'Saved without analysis', company: trackedApp.company_name })
@@ -137,15 +135,21 @@ export async function POST(req: NextRequest) {
 
   const appStatus = mapToApplicationStatus(analysis.status, analysis.email_type)
 
+  // Core update: status + dates (no updated_by — column may not exist yet)
   await supabase
     .from('applications')
     .update({
       status: appStatus,
       latest_email_subject: subject,
-      updated_by: 'ai',
       ...(analysis.interview_date && { interview_date: analysis.interview_date }),
       ...(analysis.event_date && { event_date: analysis.event_date }),
     })
+    .eq('id', trackedApp.id)
+
+  // Optional: mark as AI-updated; no-op if updated_by column doesn't exist yet
+  await supabase
+    .from('applications')
+    .update({ updated_by: 'ai' })
     .eq('id', trackedApp.id)
 
   await supabase.from('email_logs').insert({
@@ -153,7 +157,6 @@ export async function POST(req: NextRequest) {
     application_id: trackedApp.id,
     subject,
     body_text: bodyPlain.slice(0, 10000),
-    sender: sender ?? null,
     email_type: analysis.email_type,
   })
 
