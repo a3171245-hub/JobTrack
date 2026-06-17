@@ -7,7 +7,7 @@ import type { ApplicationStatus } from '@/types/database'
 export const maxDuration = 60
 import type { Database } from '@/types/database'
 
-// Mailgun署名を検証
+// Mailgun署名を検証（timing-safe）
 function verifyMailgunSignature(
   signingKey: string,
   timestamp: string,
@@ -19,7 +19,13 @@ function verifyMailgunSignature(
     .createHmac('sha256', signingKey)
     .update(value)
     .digest('hex')
-  return hmac === signature
+  // Use timing-safe comparison to prevent timing attacks
+  if (Buffer.byteLength(hmac) !== Buffer.byteLength(signature)) return false
+  try {
+    return crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(signature))
+  } catch {
+    return false
+  }
 }
 
 // OpenAIのstatusをApplicationStatusにマッピング
@@ -49,11 +55,15 @@ export async function POST(req: NextRequest) {
   const signature = formData.get('signature') as string
   const signingKey = process.env.MAILGUN_SIGNING_KEY!
 
-  // 本番環境では署名を必ず検証
-  if (process.env.NODE_ENV === 'production') {
-    if (!verifyMailgunSignature(signingKey, timestamp, token, signature)) {
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
-    }
+  // 署名は常に検証（環境に関わらず）
+  if (!signingKey || !verifyMailgunSignature(signingKey, timestamp, token, signature)) {
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+  }
+
+  // Replay attack prevention — reject requests older than 5 minutes
+  const tsNum = parseInt(timestamp, 10)
+  if (!tsNum || Math.abs(Date.now() / 1000 - tsNum) > 300) {
+    return NextResponse.json({ error: 'Request expired' }, { status: 401 })
   }
 
   const recipient = formData.get('recipient') as string

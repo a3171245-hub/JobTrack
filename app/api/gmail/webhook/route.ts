@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { timingSafeEqual } from 'crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { analyzeEmail } from '@/lib/gemini'
 import {
@@ -11,6 +12,15 @@ import type { GmailMessage, GmailHistoryItem } from '@/lib/gmail'
 import type { ApplicationStatus } from '@/types/database'
 
 export const maxDuration = 60
+
+function verifyWebhookToken(provided: string, expected: string): boolean {
+  if (Buffer.byteLength(provided) !== Buffer.byteLength(expected)) return false
+  try {
+    return timingSafeEqual(Buffer.from(provided), Buffer.from(expected))
+  } catch {
+    return false
+  }
+}
 
 function mapToApplicationStatus(
   aiStatus: string,
@@ -31,6 +41,13 @@ function mapToApplicationStatus(
 }
 
 export async function POST(request: NextRequest) {
+  // Verify shared secret passed as ?token= query param when registering the Pub/Sub push subscription
+  const secret = process.env.GMAIL_WEBHOOK_SECRET
+  const provided = request.nextUrl.searchParams.get('token') ?? ''
+  if (!secret || !verifyWebhookToken(provided, secret)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   let body: unknown
   try {
     body = await request.json()

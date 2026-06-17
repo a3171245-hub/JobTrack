@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import NavBar from '@/components/NavBar'
 import MailList from '@/components/MailList'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -12,13 +13,20 @@ export default async function MailPage() {
   const authClient = await createClient()
   const { data: { user: sessionUser } } = await authClient.auth.getUser()
 
-  const user: User = sessionUser ?? {
-    id: DEV_USER_ID,
-    email: 'a3171245@gmail.com',
-    app_metadata: {},
-    user_metadata: {},
-    aud: 'authenticated',
-    created_at: new Date().toISOString(),
+  let user: User
+  if (sessionUser) {
+    user = sessionUser
+  } else if (process.env.NODE_ENV === 'development') {
+    user = {
+      id: DEV_USER_ID,
+      email: 'a3171245@gmail.com',
+      app_metadata: {},
+      user_metadata: {},
+      aud: 'authenticated',
+      created_at: new Date().toISOString(),
+    }
+  } else {
+    redirect('/')
   }
 
   const supabase = createAdminClient()

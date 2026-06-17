@@ -1,10 +1,10 @@
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import NavBar from '@/components/NavBar'
 import SettingsClient from './SettingsClient'
 import type { User } from '@supabase/supabase-js'
 
-// DEV BYPASS: 固定ダミーユーザーID
 const DEV_USER_ID = 'f64e9d5e-0cf4-4496-bc25-90b9e58fa2c8'
 
 export default async function SettingsPage({
@@ -17,14 +17,20 @@ export default async function SettingsPage({
     data: { user: sessionUser },
   } = await authClient.auth.getUser()
 
-  // DEV BYPASS: セッションがなければ固定IDのダミーユーザーにフォールバック
-  const user: User = sessionUser ?? {
-    id: DEV_USER_ID,
-    email: 'a3171245@gmail.com',
-    app_metadata: {},
-    user_metadata: {},
-    aud: 'authenticated',
-    created_at: new Date().toISOString(),
+  let user: User
+  if (sessionUser) {
+    user = sessionUser
+  } else if (process.env.NODE_ENV === 'development') {
+    user = {
+      id: DEV_USER_ID,
+      email: 'a3171245@gmail.com',
+      app_metadata: {},
+      user_metadata: {},
+      aud: 'authenticated',
+      created_at: new Date().toISOString(),
+    }
+  } else {
+    redirect('/')
   }
 
   const supabase = createAdminClient()
