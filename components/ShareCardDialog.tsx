@@ -15,156 +15,30 @@ interface Props {
 const W = 1200
 const H = 630
 
-function drawCard(canvas: HTMLCanvasElement, apps: Application[]) {
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
+// ────────────────────────────────────────────────────────────────
+// Status progression order (from constants.ts)
+// applied → document → test → gd → interview_1 → interview_2 → final → offer
+// rejected = 落選, event = イベント
+//
+// 書類通過以降 = test, gd, interview_1, interview_2, final, offer
+// 面接実施以降 = interview_1, interview_2, final, offer
+// 内定          = offer
+// ────────────────────────────────────────────────────────────────
+const DOC_PASS_STATUSES = new Set(['test', 'gd', 'interview_1', 'interview_2', 'final', 'offer'])
+const INTERVIEW_STATUSES = new Set(['interview_1', 'interview_2', 'final', 'offer'])
+const OFFER_STATUSES = new Set(['offer'])
 
-  // Background gradient: indigo → violet
-  const grad = ctx.createLinearGradient(0, 0, W, H)
-  grad.addColorStop(0, '#312e81')   // indigo-900
-  grad.addColorStop(0.55, '#4c1d95') // violet-900
-  grad.addColorStop(1, '#1e1b4b')   // indigo-950
-  ctx.fillStyle = grad
-  ctx.fillRect(0, 0, W, H)
-
-  // Subtle noise-style dots
-  ctx.globalAlpha = 0.06
-  for (let i = 0; i < 300; i++) {
-    const x = Math.random() * W
-    const y = Math.random() * H
-    const r = Math.random() * 2 + 0.5
-    ctx.beginPath()
-    ctx.arc(x, y, r, 0, Math.PI * 2)
-    ctx.fillStyle = '#ffffff'
-    ctx.fill()
-  }
-  ctx.globalAlpha = 1
-
-  // Glow circle top-right
-  const glow = ctx.createRadialGradient(W * 0.85, H * 0.15, 0, W * 0.85, H * 0.15, 350)
-  glow.addColorStop(0, 'rgba(139,92,246,0.35)')
-  glow.addColorStop(1, 'rgba(139,92,246,0)')
-  ctx.fillStyle = glow
-  ctx.fillRect(0, 0, W, H)
-
-  // Glow circle bottom-left
-  const glow2 = ctx.createRadialGradient(W * 0.1, H * 0.85, 0, W * 0.1, H * 0.85, 280)
-  glow2.addColorStop(0, 'rgba(99,102,241,0.3)')
-  glow2.addColorStop(1, 'rgba(99,102,241,0)')
-  ctx.fillStyle = glow2
-  ctx.fillRect(0, 0, W, H)
-
-  // ── Stats ──────────────────────────────────────────────────
+function computeStats(apps: Application[]) {
   const total = apps.length
-  const docPass = apps.filter((a) =>
-    ['document_passed', 'interview', 'gd', 'aptitude', 'offer', 'offered'].includes(a.status)
-  ).length
-  const interview = apps.filter((a) =>
-    ['interview', 'gd', 'aptitude', 'offer', 'offered'].includes(a.status)
-  ).length
-  const offered = apps.filter((a) => ['offer', 'offered'].includes(a.status)).length
-
-  const stats: { label: string; value: number; sub?: string }[] = [
-    { label: '総エントリー', value: total, sub: '社' },
-    { label: '書類通過', value: docPass, sub: '社' },
-    { label: '面接実施', value: interview, sub: '社' },
-    { label: '内定', value: offered, sub: '社' },
-  ]
-
-  // ── Top label ──────────────────────────────────────────────
-  ctx.fillStyle = 'rgba(199,210,254,0.7)'
-  ctx.font = '600 28px -apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif'
-  ctx.textAlign = 'left'
-  ctx.fillText('2025年卒　就活戦績', 88, 108)
-
-  // ── Main headline ──────────────────────────────────────────
-  ctx.fillStyle = '#ffffff'
-  ctx.font = `800 110px -apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif`
-  ctx.textAlign = 'left'
-  const headline = total > 0
-    ? `${offered}社内定 / ${total}社エントリー`
-    : 'just getting started'
-  ctx.fillText(headline, 88, 240, W - 176)
-
-  // ── Stat cards ─────────────────────────────────────────────
-  const cardW = 240
-  const cardH = 170
-  const gap = 24
-  const totalCardsW = stats.length * cardW + (stats.length - 1) * gap
-  const startX = (W - totalCardsW) / 2
-  const cardY = H - cardH - 90
-
-  stats.forEach((stat, i) => {
-    const x = startX + i * (cardW + gap)
-    const y = cardY
-
-    // Card background
-    ctx.save()
-    ctx.globalAlpha = 0.22
-    const cardGrad = ctx.createLinearGradient(x, y, x, y + cardH)
-    cardGrad.addColorStop(0, '#ffffff')
-    cardGrad.addColorStop(1, 'rgba(255,255,255,0.05)')
-    roundRect(ctx, x, y, cardW, cardH, 20)
-    ctx.fillStyle = cardGrad
-    ctx.fill()
-    ctx.restore()
-
-    // Card border
-    ctx.save()
-    ctx.globalAlpha = 0.18
-    ctx.strokeStyle = '#a5b4fc'
-    ctx.lineWidth = 1.5
-    roundRect(ctx, x, y, cardW, cardH, 20)
-    ctx.stroke()
-    ctx.restore()
-
-    // Value
-    ctx.fillStyle = '#ffffff'
-    ctx.font = `800 72px -apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif`
-    ctx.textAlign = 'center'
-    ctx.fillText(String(stat.value), x + cardW / 2, y + 95)
-
-    // Sub
-    if (stat.sub) {
-      ctx.font = `500 26px -apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif`
-      ctx.fillStyle = 'rgba(199,210,254,0.75)'
-      const numWidth = ctx.measureText(String(stat.value)).width
-      ctx.textAlign = 'left'
-      ctx.fillText(stat.sub, x + cardW / 2 + numWidth / 2 - ctx.measureText(String(stat.value)).width / 6 + 4, y + 95)
-    }
-
-    // Label
-    ctx.fillStyle = 'rgba(199,210,254,0.85)'
-    ctx.font = `600 22px -apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif`
-    ctx.textAlign = 'center'
-    ctx.fillText(stat.label, x + cardW / 2, y + cardH - 24)
-  })
-
-  // ── Branding ───────────────────────────────────────────────
-  // Logo pill
-  const pillX = W - 88 - 200
-  const pillY = 64
-  const pillW = 200
-  const pillH = 44
-  ctx.save()
-  ctx.globalAlpha = 0.25
-  roundRect(ctx, pillX, pillY, pillW, pillH, 22)
-  ctx.fillStyle = '#a5b4fc'
-  ctx.fill()
-  ctx.restore()
-
-  ctx.fillStyle = '#c7d2fe'
-  ctx.font = `700 22px -apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif`
-  ctx.textAlign = 'center'
-  ctx.fillText('JobTrack', pillX + pillW / 2, pillY + 29)
-
-  // URL
-  ctx.fillStyle = 'rgba(165,180,252,0.55)'
-  ctx.font = `400 20px -apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif`
-  ctx.textAlign = 'right'
-  ctx.fillText('job-track-tawny.vercel.app', W - 88, H - 40)
+  const docPass = apps.filter((a) => DOC_PASS_STATUSES.has(a.status)).length
+  const interview = apps.filter((a) => INTERVIEW_STATUSES.has(a.status)).length
+  const offered = apps.filter((a) => OFFER_STATUSES.has(a.status)).length
+  return { total, docPass, interview, offered }
 }
 
+// ────────────────────────────────────────────────────────────────
+// Canvas helpers
+// ────────────────────────────────────────────────────────────────
 function roundRect(
   ctx: CanvasRenderingContext2D,
   x: number, y: number, w: number, h: number, r: number
@@ -182,6 +56,190 @@ function roundRect(
   ctx.closePath()
 }
 
+function drawCard(canvas: HTMLCanvasElement, apps: Application[]) {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  const { total, docPass, interview, offered } = computeStats(apps)
+
+  // ── Background ─────────────────────────────────────────────
+  const bg = ctx.createLinearGradient(0, 0, W, H)
+  bg.addColorStop(0,    '#0f0c29')
+  bg.addColorStop(0.45, '#302b63')
+  bg.addColorStop(1,    '#24243e')
+  ctx.fillStyle = bg
+  ctx.fillRect(0, 0, W, H)
+
+  // Glow — top-right violet
+  const g1 = ctx.createRadialGradient(W * 0.88, H * 0.08, 0, W * 0.88, H * 0.08, 420)
+  g1.addColorStop(0, 'rgba(167,139,250,0.28)')
+  g1.addColorStop(1, 'rgba(167,139,250,0)')
+  ctx.fillStyle = g1
+  ctx.fillRect(0, 0, W, H)
+
+  // Glow — bottom-left indigo
+  const g2 = ctx.createRadialGradient(W * 0.08, H * 0.92, 0, W * 0.08, H * 0.92, 360)
+  g2.addColorStop(0, 'rgba(99,102,241,0.32)')
+  g2.addColorStop(1, 'rgba(99,102,241,0)')
+  ctx.fillStyle = g2
+  ctx.fillRect(0, 0, W, H)
+
+  // Subtle star-dots
+  ctx.save()
+  for (let i = 0; i < 220; i++) {
+    const x = Math.random() * W
+    const y = Math.random() * H
+    const r = Math.random() * 1.5 + 0.3
+    const a = Math.random() * 0.45 + 0.05
+    ctx.globalAlpha = a
+    ctx.beginPath()
+    ctx.arc(x, y, r, 0, Math.PI * 2)
+    ctx.fillStyle = '#c4b5fd'
+    ctx.fill()
+  }
+  ctx.restore()
+
+  // Thin horizontal accent line
+  const lineGrad = ctx.createLinearGradient(80, 0, W - 80, 0)
+  lineGrad.addColorStop(0,   'rgba(167,139,250,0)')
+  lineGrad.addColorStop(0.3, 'rgba(167,139,250,0.7)')
+  lineGrad.addColorStop(0.7, 'rgba(99,102,241,0.7)')
+  lineGrad.addColorStop(1,   'rgba(99,102,241,0)')
+  ctx.strokeStyle = lineGrad
+  ctx.lineWidth = 1.5
+  ctx.beginPath()
+  ctx.moveTo(80, 130)
+  ctx.lineTo(W - 80, 130)
+  ctx.stroke()
+
+  // ── JobTrack badge (top-left) ────────────────────────────────
+  const font = `-apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif`
+
+  // pill bg
+  ctx.save()
+  roundRect(ctx, 80, 52, 168, 44, 22)
+  ctx.globalAlpha = 0.18
+  ctx.fillStyle = '#a78bfa'
+  ctx.fill()
+  ctx.restore()
+  // pill border
+  ctx.save()
+  roundRect(ctx, 80, 52, 168, 44, 22)
+  ctx.globalAlpha = 0.35
+  ctx.strokeStyle = '#c4b5fd'
+  ctx.lineWidth = 1.5
+  ctx.stroke()
+  ctx.restore()
+
+  ctx.fillStyle = '#e0d7ff'
+  ctx.font = `700 22px ${font}`
+  ctx.textAlign = 'center'
+  ctx.fillText('JobTrack', 80 + 84, 52 + 29)
+
+  // ── Title ────────────────────────────────────────────────────
+  ctx.fillStyle = '#c4b5fd'
+  ctx.font = `600 26px ${font}`
+  ctx.textAlign = 'left'
+  ctx.fillText('就活戦績レポート', 80, 104)
+
+  // ── Hero: offer count ─────────────────────────────────────────
+  // Large offered number
+  ctx.fillStyle = '#ffffff'
+  ctx.font = `900 148px ${font}`
+  ctx.textAlign = 'left'
+  const heroNum = String(offered)
+  ctx.fillText(heroNum, 80, 290)
+
+  const heroNumW = ctx.measureText(heroNum).width
+
+  // "社内定" suffix
+  ctx.fillStyle = '#c4b5fd'
+  ctx.font = `700 46px ${font}`
+  ctx.textAlign = 'left'
+  ctx.fillText('社内定', 80 + heroNumW + 8, 274)
+
+  // "/" separator
+  ctx.fillStyle = 'rgba(196,181,253,0.4)'
+  ctx.font = `300 38px ${font}`
+  ctx.fillText(`/ ${total}社エントリー`, 80 + heroNumW + 8, 322)
+
+  // ── Stat cards ────────────────────────────────────────────────
+  const statData = [
+    { label: '総エントリー', value: total,     accent: '#818cf8' },  // indigo
+    { label: '書類通過',     value: docPass,   accent: '#34d399' },  // emerald
+    { label: '面接実施',     value: interview, accent: '#60a5fa' },  // blue
+    { label: '内定',         value: offered,   accent: '#a78bfa' },  // violet
+  ]
+
+  const cardW = 230
+  const cardH = 172
+  const cardGap = 20
+  const totalCardsW = statData.length * cardW + (statData.length - 1) * cardGap
+  const cardsStartX = (W - totalCardsW) / 2
+  const cardsY = H - cardH - 56
+
+  statData.forEach((stat, i) => {
+    const cx = cardsStartX + i * (cardW + cardGap)
+    const cy = cardsY
+
+    // Card glass background
+    ctx.save()
+    roundRect(ctx, cx, cy, cardW, cardH, 18)
+    ctx.globalAlpha = 0.14
+    ctx.fillStyle = '#ffffff'
+    ctx.fill()
+    ctx.restore()
+
+    // Card border
+    ctx.save()
+    roundRect(ctx, cx, cy, cardW, cardH, 18)
+    ctx.globalAlpha = 0.22
+    ctx.strokeStyle = stat.accent
+    ctx.lineWidth = 1.5
+    ctx.stroke()
+    ctx.restore()
+
+    // Top accent bar
+    ctx.save()
+    const barGrad = ctx.createLinearGradient(cx, cy, cx + cardW, cy)
+    barGrad.addColorStop(0, stat.accent)
+    barGrad.addColorStop(1, 'rgba(0,0,0,0)')
+    roundRect(ctx, cx + 18, cy + 14, 56, 3, 2)
+    ctx.globalAlpha = 0.85
+    ctx.fillStyle = barGrad
+    ctx.fill()
+    ctx.restore()
+
+    // Value
+    ctx.fillStyle = '#ffffff'
+    ctx.font = `800 78px ${font}`
+    ctx.textAlign = 'center'
+    ctx.fillText(String(stat.value), cx + cardW / 2, cy + 102)
+
+    // "社" unit
+    ctx.fillStyle = stat.accent
+    ctx.font = `600 22px ${font}`
+    const valW = ctx.measureText(String(stat.value)).width
+    ctx.textAlign = 'left'
+    ctx.fillText('社', cx + cardW / 2 + valW / 2 + 4, cy + 94)
+
+    // Label
+    ctx.fillStyle = 'rgba(196,181,253,0.8)'
+    ctx.font = `600 20px ${font}`
+    ctx.textAlign = 'center'
+    ctx.fillText(stat.label, cx + cardW / 2, cy + cardH - 20)
+  })
+
+  // ── Footer URL ────────────────────────────────────────────────
+  ctx.fillStyle = 'rgba(148,163,184,0.45)'
+  ctx.font = `400 18px ${font}`
+  ctx.textAlign = 'right'
+  ctx.fillText('job-track-tawny.vercel.app', W - 80, H - 22)
+}
+
+// ────────────────────────────────────────────────────────────────
+// Component
+// ────────────────────────────────────────────────────────────────
 export default function ShareCardDialog({ applications, onClose }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -202,7 +260,7 @@ export default function ShareCardDialog({ applications, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm p-4"
       onClick={onClose}
     >
       <div
@@ -228,8 +286,8 @@ export default function ShareCardDialog({ applications, onClose }: Props) {
         </div>
 
         {/* Preview */}
-        <div className="p-4 bg-slate-50 dark:bg-slate-950/50">
-          <div className="rounded-xl overflow-hidden shadow-lg">
+        <div className="p-4 bg-slate-950/60">
+          <div className="rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/10">
             <canvas
               ref={canvasRef}
               width={W}
@@ -243,7 +301,7 @@ export default function ShareCardDialog({ applications, onClose }: Props) {
         {/* Footer */}
         <div className="flex items-center justify-between px-5 py-4 border-t border-slate-200 dark:border-slate-700/60">
           <p className="text-xs text-slate-400">
-            1200 × 630 px — Twitter / Instagram に最適
+            1200 × 630 px — X (Twitter) / Instagram に最適
           </p>
           <Button
             onClick={handleDownload}
