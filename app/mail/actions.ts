@@ -9,6 +9,18 @@ const FREE_ACTIVE_LIMIT = 5
 const RETROACTIVE_LIMIT = 10    // max past emails to re-analyze
 const ANALYSIS_INTERVAL_MS = 600 // rate-limit delay between Groq calls
 
+// Returns a valid ISO string if parseable, otherwise null.
+// Guards against AI returning "null" string, Japanese dates, or malformed values.
+function toISODateOrNull(val: string | null | undefined): string | null {
+  if (!val || val === 'null' || val === 'undefined') return null
+  try {
+    const d = new Date(val)
+    return isNaN(d.getTime()) ? null : d.toISOString()
+  } catch {
+    return null
+  }
+}
+
 function extractSenderDomain(from: string): string {
   const addr = (from.match(/<([^>]+)>/) ?? [])[1] ?? from
   return addr.trim().split('@')[1]?.toLowerCase() ?? ''
@@ -97,22 +109,41 @@ export async function trackCompany(emailLogId: string): Promise<TrackResult> {
   )
   const appStatus = mapToApplicationStatus(analysis.status, analysis.email_type)
 
+  const safeInterviewDate = toISODateOrNull(analysis.interview_date)
+  const safeEventDate = toISODateOrNull(analysis.event_date)
+
   // Create application (omit columns that may not exist yet; set them in a follow-up UPDATE)
-  const { data: newApp, error: insertError } = await supabase
+  let insertResult = await supabase
     .from('applications')
     .insert({
       user_id: user.id,
       company_name: companyName,
       status: appStatus,
       latest_email_subject: emailLog.subject,
-      interview_date: analysis.interview_date ?? null,
-      event_date: analysis.event_date ?? null,
+      interview_date: safeInterviewDate,
+      event_date: safeEventDate,
     })
     .select('id')
     .single()
 
+  // Retry without date columns in case of schema mismatch
+  if (insertResult.error) {
+    console.error('[trackCompany] insert attempt 1 failed:', JSON.stringify(insertResult.error))
+    insertResult = await supabase
+      .from('applications')
+      .insert({
+        user_id: user.id,
+        company_name: companyName,
+        status: appStatus,
+        latest_email_subject: emailLog.subject,
+      })
+      .select('id')
+      .single()
+  }
+
+  const { data: newApp, error: insertError } = insertResult
   if (insertError || !newApp) {
-    console.error('[trackCompany] application insert failed:', insertError?.message, insertError?.details)
+    console.error('[trackCompany] application insert failed (both attempts):', JSON.stringify(insertError))
     return { error: 'insert_failed' }
   }
 
@@ -156,8 +187,8 @@ export async function trackCompany(emailLogId: string): Promise<TrackResult> {
   // Re-analyze past emails with rate limiting
   let latestStatus: ApplicationStatus = appStatus
   let latestSubject: string | null = emailLog.subject ?? null
-  let latestInterviewDate: string | null = analysis.interview_date ?? null
-  let latestEventDate: string | null = analysis.event_date ?? null
+  let latestInterviewDate: string | null = safeInterviewDate
+  let latestEventDate: string | null = safeEventDate
   let retroCount = 0
 
   for (const log of untrackedLogs) {
@@ -180,8 +211,10 @@ export async function trackCompany(emailLogId: string): Promise<TrackResult> {
 
       latestStatus = s
       latestSubject = log.subject ?? latestSubject
-      if (a.interview_date) latestInterviewDate = a.interview_date
-      if (a.event_date) latestEventDate = a.event_date
+      const d1 = toISODateOrNull(a.interview_date)
+      const d2 = toISODateOrNull(a.event_date)
+      if (d1) latestInterviewDate = d1
+      if (d2) latestEventDate = d2
       retroCount++
     } catch {
       // Link even if analysis fails
