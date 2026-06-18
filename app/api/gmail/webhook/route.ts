@@ -161,6 +161,7 @@ export async function POST(request: NextRequest) {
           user_id: userRecord.id,
           subject,
           body_text: bodyText.slice(0, 10000),
+          sender: from,
           email_type: 'other' as const,
         })
         continue
@@ -177,6 +178,7 @@ export async function POST(request: NextRequest) {
           application_id: group[0].id,
           subject,
           body_text: bodyText.slice(0, 10000),
+          sender: from,
           email_type: 'other' as const,
         })
         continue
@@ -224,6 +226,7 @@ export async function POST(request: NextRequest) {
         application_id: trackedApp.id,
         subject,
         body_text: bodyText.slice(0, 10000),
+        sender: from,
         email_type: analysis.email_type as 'selection' | 'event' | 'other',
       })
 

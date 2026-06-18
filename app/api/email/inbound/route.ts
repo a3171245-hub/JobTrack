@@ -142,6 +142,7 @@ export async function POST(request: NextRequest) {
       user_id: userId,
       subject,
       body_text: bodyText.slice(0, 10000),
+      sender: from,
       email_type: 'other' as const,
     })
     return NextResponse.json({ ok: true, processed: false, reason: 'untracked' })
@@ -159,6 +160,7 @@ export async function POST(request: NextRequest) {
       application_id: group[0].id,
       subject,
       body_text: bodyText.slice(0, 10000),
+      sender: from,
       email_type: 'other' as const,
     })
     return NextResponse.json({ ok: true, processed: false })
@@ -207,6 +209,7 @@ export async function POST(request: NextRequest) {
       application_id: trackedApp.id,
       subject,
       body_text: bodyText.slice(0, 10000),
+      sender: from,
       email_type: (analysis.email_type ?? 'other') as 'selection' | 'event' | 'other',
     })
 
