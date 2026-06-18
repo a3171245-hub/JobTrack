@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import NavBar from '@/components/NavBar'
 import EsDeadlineEditor from '@/components/EsDeadlineEditor'
+import CompanyUrlEditor from '@/components/CompanyUrlEditor'
 import EmailLogList from '@/components/EmailLogList'
 import StatusSelector from '@/components/StatusSelector'
 import InterviewDateSelector from '@/components/InterviewDateSelector'
@@ -154,12 +155,17 @@ export default async function CompanyDetailPage({
           </div>
         )}
 
-        {/* 面接日程候補が複数あり未確定の場合の選択UI */}
-        {!application.interview_date_confirmed && (application.interview_date_candidates?.length ?? 0) > 1 && (
+        {/* 面接日程の確認・入力UI
+            - 候補が複数あり未確定の場合: 候補から選ぶ
+            - 面接段階だが日程が一切わからない場合（マイページ参照等）: 自分で入力する */}
+        {(
+          (!application.interview_date_confirmed && (application.interview_date_candidates?.length ?? 0) > 1) ||
+          (['interview_1', 'interview_2', 'final'].includes(application.status) && !application.interview_date)
+        ) && (
           <InterviewDateSelector
             applicationId={application.id}
             companyName={application.company_name}
-            candidates={application.interview_date_candidates!}
+            candidates={application.interview_date_candidates ?? []}
             userId={user.id}
           />
         )}
@@ -176,6 +182,15 @@ export default async function CompanyDetailPage({
             </p>
           </section>
         )}
+
+        {/* 応募者専用マイページ */}
+        <section className="bg-white rounded-xl ring-1 ring-slate-900/5 shadow-sm p-6 mb-6">
+          <h2 className="text-base font-semibold text-slate-800 mb-4">応募者専用マイページ</h2>
+          <CompanyUrlEditor
+            applicationId={application.id}
+            initialUrl={application.company_url ?? null}
+          />
+        </section>
 
         {/* ES締切日 */}
         <section className="bg-white rounded-xl ring-1 ring-slate-900/5 shadow-sm p-6 mb-6">

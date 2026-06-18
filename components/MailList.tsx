@@ -73,13 +73,16 @@ function CalendarPrompt({
   companyName, candidates, dateType, userId, applicationId, onDone,
 }: {
   companyName: string
-  candidates: string[]  // at least one
+  candidates: string[]  // may be empty (e.g. "see company mypage for schedule" emails)
   dateType: 'interview' | 'event'
   userId: string
   applicationId: string | null
   onDone: () => void
 }) {
-  const [selectedDate, setSelectedDate] = useState(candidates[0])
+  const hasCandidates = candidates.length > 0
+  const [mode, setMode] = useState<'candidates' | 'manual'>(hasCandidates ? 'candidates' : 'manual')
+  const [selectedDate, setSelectedDate] = useState(candidates[0] ?? '')
+  const [manualDateTime, setManualDateTime] = useState('')
   const [status, setStatus] = useState<'idle' | 'loading' | 'done'>('idle')
   const label = dateType === 'interview' ? '面接' : '説明会・イベント'
   const isMultiple = candidates.length > 1
@@ -89,16 +92,24 @@ function CalendarPrompt({
   }
 
   async function handleAdd() {
+    const isoDate = mode === 'candidates'
+      ? selectedDate
+      : (manualDateTime ? new Date(manualDateTime).toISOString() : null)
+    if (!isoDate) {
+      toast.error('日時を入力してください')
+      return
+    }
+
     setStatus('loading')
     try {
       await fetch('/api/calendar/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, title: `${companyName} — ${label}`, date: selectedDate, type: dateType }),
+        body: JSON.stringify({ user_id: userId, title: `${companyName} — ${label}`, date: isoDate, type: dateType }),
       })
       // Persist the user's pick so the dashboard's "日程未確定" notice clears
       if (dateType === 'interview' && applicationId) {
-        await confirmInterviewDate(applicationId, selectedDate)
+        await confirmInterviewDate(applicationId, isoDate)
       }
       setStatus('done')
       setTimeout(onDone, 800)
@@ -122,9 +133,42 @@ function CalendarPrompt({
         <CalendarDays className="w-5 h-5 text-indigo-600 dark:text-indigo-400 mt-0.5 flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-100">
-            {isMultiple ? `${label}の日程候補が${candidates.length}件あります` : `${label}の日程が見つかりました`}
+            {hasCandidates
+              ? (isMultiple ? `${label}の日程候補が${candidates.length}件あります` : `${label}の日程が見つかりました`)
+              : `${label}の日程が未確定です`}
           </p>
-          {isMultiple ? (
+          {!hasCandidates && (
+            <p className="text-xs text-indigo-600 dark:text-indigo-400/80 mt-0.5">
+              メールに日程の記載がなかったため、企業のマイページ等で確認した日時を入力してください。
+            </p>
+          )}
+
+          {hasCandidates && (
+            <div className="flex gap-1.5 mt-2">
+              <button
+                onClick={() => setMode('candidates')}
+                className={`text-xs font-medium px-2.5 py-1 rounded-lg border transition-colors ${
+                  mode === 'candidates'
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700/60'
+                }`}
+              >
+                候補から選ぶ
+              </button>
+              <button
+                onClick={() => setMode('manual')}
+                className={`text-xs font-medium px-2.5 py-1 rounded-lg border transition-colors ${
+                  mode === 'manual'
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700/60'
+                }`}
+              >
+                自分で入力する
+              </button>
+            </div>
+          )}
+
+          {mode === 'candidates' ? (
             <div className="mt-2 space-y-1.5">
               {candidates.map((d, i) => (
                 <label key={d} className="flex items-center gap-2.5 cursor-pointer group">
@@ -143,12 +187,20 @@ function CalendarPrompt({
               ))}
             </div>
           ) : (
-            <p className="text-sm text-indigo-700 dark:text-indigo-300 mt-0.5">{fmt(selectedDate)} · {companyName}</p>
+            <div className="mt-2">
+              <input
+                type="datetime-local"
+                value={manualDateTime}
+                onChange={(e) => setManualDateTime(e.target.value)}
+                className="h-9 px-3 rounded-lg border border-indigo-300 dark:border-indigo-700/60 bg-white dark:bg-indigo-950/40 text-sm text-indigo-900 dark:text-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-700/40"
+              />
+            </div>
           )}
+
           <div className="flex gap-2 mt-3">
             <button
               onClick={handleAdd}
-              disabled={status === 'loading'}
+              disabled={status === 'loading' || (mode === 'manual' && !manualDateTime)}
               className="text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400 text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-60"
             >
               {status === 'loading' ? '追加中…' : 'カレンダーに追加'}
@@ -168,12 +220,13 @@ function CalendarPrompt({
 
 // ─── Mail Modal ───────────────────────────────────────────────────
 function MailModal({
-  log, companyName, calendarCandidates, calendarType, userId, onClose,
+  log, companyName, calendarCandidates, calendarType, showCalendarPrompt, userId, onClose,
 }: {
   log: EmailLog
   companyName: string
   calendarCandidates: string[]
   calendarType: 'interview' | 'event'
+  showCalendarPrompt: boolean
   userId: string
   onClose: () => void
 }) {
@@ -228,7 +281,7 @@ function MailModal({
           </button>
         </div>
 
-        {calendarCandidates.length > 0 && !calendarHandled && (
+        {showCalendarPrompt && !calendarHandled && (
           <CalendarPrompt
             companyName={companyName}
             candidates={calendarCandidates}
@@ -280,7 +333,7 @@ export default function MailList({
 }: {
   logs: EmailLog[]
   companyMap: Record<string, string>
-  appDateMap?: Record<string, { interview_date: string | null; interview_date_candidates?: string[] | null; event_date: string | null }>
+  appDateMap?: Record<string, { status?: string; interview_date: string | null; interview_date_candidates?: string[] | null; event_date: string | null }>
   userId?: string
   freeLimitHit?: boolean
   plan?: 'free' | 'premium'
@@ -586,17 +639,22 @@ export default function MailList({
       {selectedLog && (() => {
         const appId = selectedLog.application_id
         const dates = appId ? appDateMap[appId] : null
+        const isInterviewStage = ['interview_1', 'interview_2', 'final'].includes(dates?.status ?? '')
         // Build candidate list: prefer candidates array, fall back to single dates
         const calendarCandidates: string[] = (() => {
           const c = dates?.interview_date_candidates?.filter(Boolean) ?? []
           if (c.length > 0) return c
           if (dates?.interview_date) return [dates.interview_date]
-          if (dates?.event_date) return [dates.event_date]
+          if (!isInterviewStage && dates?.event_date) return [dates.event_date]
           return []
         })()
         const calendarType: 'interview' | 'event' =
-          (dates?.interview_date_candidates?.length ?? 0) > 0 || dates?.interview_date
+          isInterviewStage || (dates?.interview_date_candidates?.length ?? 0) > 0 || dates?.interview_date
             ? 'interview' : 'event'
+        // Show even with zero candidates when the company is mid-interview but no date was ever captured
+        // (e.g. "see our applicant mypage for the schedule" emails) — lets the user enter it manually.
+        const showCalendarPrompt =
+          calendarCandidates.length > 0 || (calendarType === 'interview' && isInterviewStage && !dates?.interview_date)
         const companyName = appId ? companyMap[appId] ?? '企業未紐付け' : '企業未紐付け'
         return (
           <MailModal
@@ -604,6 +662,7 @@ export default function MailList({
             companyName={companyName}
             calendarCandidates={calendarCandidates}
             calendarType={calendarType}
+            showCalendarPrompt={showCalendarPrompt}
             userId={userId}
             onClose={() => setSelectedLog(null)}
           />

@@ -41,7 +41,7 @@ export default async function MailPage() {
       .limit(FREE_MAIL_LIMIT + 1),
     supabase
       .from('applications')
-      .select('id, company_name, interview_date, interview_date_candidates, event_date, is_active')
+      .select('id, company_name, status, interview_date, interview_date_candidates, event_date, is_active')
       .eq('user_id', user.id),
     supabase
       .from('users')
@@ -72,6 +72,7 @@ export default async function MailPage() {
   const companyMap = Object.fromEntries(apps.map((a) => [a.id, a.company_name]))
   const appDateMap = Object.fromEntries(
     apps.map((a) => [a.id, {
+      status: a.status,
       interview_date: a.interview_date,
       interview_date_candidates: a.interview_date_candidates,
       event_date: a.event_date,

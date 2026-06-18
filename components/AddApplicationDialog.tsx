@@ -81,6 +81,7 @@ export default function AddApplicationDialog({
         updated_by: 'ai',
         sender_domain: null,
         process_type: null,
+        company_url: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }

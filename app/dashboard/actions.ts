@@ -293,6 +293,31 @@ export async function updateEsDeadline(
   }
 }
 
+export async function updateCompanyUrl(
+  applicationId: string,
+  url: string | null
+): Promise<{ ok: true } | { ok: false }> {
+  const userId = await getCurrentUserId()
+  if (!userId) return { ok: false }
+
+  const trimmed = url?.trim() || null
+  // Only allow http(s) links — guards against javascript: URIs ending up in an href
+  if (trimmed && !/^https?:\/\//i.test(trimmed)) return { ok: false }
+
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from('applications')
+    .update({ company_url: trimmed ? trimmed.slice(0, 2000) : null })
+    .eq('id', applicationId)
+    .eq('user_id', userId)
+
+  if (error) {
+    console.error('updateCompanyUrl error:', error)
+    return { ok: false }
+  }
+  return { ok: true }
+}
+
 const MEMO_MAX_LENGTH = 10_000
 
 export async function updateMemo(applicationId: string, memo: string) {

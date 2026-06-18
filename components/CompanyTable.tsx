@@ -21,6 +21,7 @@ import {
   ChevronDown,
   ChevronUp,
   ExternalLink,
+  Link2,
   Search,
   X,
   Rocket,
@@ -472,6 +473,18 @@ function TableBody({
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-1 justify-end">
+                      {app.company_url && (
+                        <a
+                          href={app.company_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-slate-300 dark:text-slate-700 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+                          title="マイページを開く"
+                        >
+                          <Link2 className="w-3.5 h-3.5" />
+                        </a>
+                      )}
                       {showAffiliate && (
                         <a
                           href={AFFILIATE_URL}
@@ -639,6 +652,17 @@ function TableBody({
                         <Pin className="w-4 h-4" />
                       </button>
                     )
+                  )}
+                  {app.company_url && (
+                    <a
+                      href={app.company_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2.5 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-xl transition-colors"
+                      title="マイページを開く"
+                    >
+                      <Link2 className="w-4 h-4" />
+                    </a>
                   )}
                   {showAffiliate && (
                     <a

@@ -89,6 +89,7 @@ export interface Database {
           updated_by: 'ai' | 'manual'
           sender_domain: string | null
           process_type: ProcessType | null
+          company_url: string | null
           created_at: string
           updated_at: string
         }
@@ -114,6 +115,7 @@ export interface Database {
           updated_by?: 'ai' | 'manual'
           sender_domain?: string | null
           process_type?: ProcessType | null
+          company_url?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -139,6 +141,7 @@ export interface Database {
           updated_by?: 'ai' | 'manual'
           sender_domain?: string | null
           process_type?: ProcessType | null
+          company_url?: string | null
           created_at?: string
           updated_at?: string
         }

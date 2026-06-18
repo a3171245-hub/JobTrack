@@ -662,8 +662,11 @@ export default function CalendarView({ applications }: { applications: CalendarA
                 const isSun = di === 0
                 const isSat = di === 6
 
-                const numberClass = isSelected
-                  ? 'bg-indigo-600 text-white font-bold shadow-sm'
+                // 「今日」と「選択中」は別配色にする（同時に該当する日は今日の青地＋リングで両方を表す）
+                const numberClass = isSelected && isCurrentDay
+                  ? 'bg-indigo-600 text-white font-bold shadow-md shadow-indigo-600/30 ring-2 ring-slate-400 dark:ring-slate-300 ring-offset-2 ring-offset-white dark:ring-offset-slate-900'
+                  : isSelected
+                  ? 'bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 font-bold shadow-sm'
                   : isCurrentDay
                   ? 'bg-indigo-600 text-white font-bold shadow-md shadow-indigo-600/30'
                   : !inMonth
