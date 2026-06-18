@@ -4,6 +4,7 @@ import NavBar from '@/components/NavBar'
 import EsDeadlineEditor from '@/components/EsDeadlineEditor'
 import EmailLogList from '@/components/EmailLogList'
 import StatusSelector from '@/components/StatusSelector'
+import InterviewDateSelector from '@/components/InterviewDateSelector'
 import AptitudeTestSection from '@/components/AptitudeTestSection'
 import MemoSection from '@/components/MemoSection'
 import { buttonVariants } from '@/components/ui/button'
@@ -151,6 +152,16 @@ export default async function CompanyDetailPage({
               エージェントに相談
             </a>
           </div>
+        )}
+
+        {/* 面接日程候補が複数あり未確定の場合の選択UI */}
+        {!application.interview_date_confirmed && (application.interview_date_candidates?.length ?? 0) > 1 && (
+          <InterviewDateSelector
+            applicationId={application.id}
+            companyName={application.company_name}
+            candidates={application.interview_date_candidates!}
+            userId={user.id}
+          />
         )}
 
         {/* 企業情報メモ（AI取得） */}

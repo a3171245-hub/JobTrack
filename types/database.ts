@@ -22,6 +22,8 @@ export type EmailType = 'selection' | 'event' | 'other' | 'manual_update'
 
 export type TestResult = '通過' | '不通過' | '未受検'
 
+export type ProcessType = 'internship' | 'fulltime' | 'other'
+
 export interface Database {
   public: {
     Tables: {
@@ -82,9 +84,11 @@ export interface Database {
           es_deadline: string | null
           custom_flow: Json | null
           gd_date: string | null
+          interview_date_confirmed: boolean
           is_active: boolean
           updated_by: 'ai' | 'manual'
           sender_domain: string | null
+          process_type: ProcessType | null
           created_at: string
           updated_at: string
         }
@@ -105,9 +109,11 @@ export interface Database {
           es_deadline?: string | null
           custom_flow?: Json | null
           gd_date?: string | null
+          interview_date_confirmed?: boolean
           is_active?: boolean
           updated_by?: 'ai' | 'manual'
           sender_domain?: string | null
+          process_type?: ProcessType | null
           created_at?: string
           updated_at?: string
         }
@@ -128,9 +134,11 @@ export interface Database {
           es_deadline?: string | null
           custom_flow?: Json | null
           gd_date?: string | null
+          interview_date_confirmed?: boolean
           is_active?: boolean
           updated_by?: 'ai' | 'manual'
           sender_domain?: string | null
+          process_type?: ProcessType | null
           created_at?: string
           updated_at?: string
         }

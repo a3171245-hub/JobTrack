@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { timingSafeEqual } from 'crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { analyzeEmail } from '@/lib/gemini'
+import { sanitizeCandidates, toISODateOrNull } from '@/lib/interview-dates'
+import { findGroupApps, findOrCreateSiblingProcess } from '@/lib/process-routing'
 import { inboundEmailSchema, parseBody } from '@/lib/validate'
-import type { ApplicationStatus } from '@/types/database'
+import type { ApplicationStatus, ProcessType } from '@/types/database'
 
 export const maxDuration = 60
 
@@ -130,17 +132,10 @@ export async function POST(request: NextRequest) {
   const bodyText = emailBody
   const senderDomain = extractSenderDomain(from)
 
-  // 4. Check if sender domain matches a tracked application
-  const { data: trackedApp } = senderDomain
-    ? await supabase
-        .from('applications')
-        .select('id, company_name, status')
-        .eq('user_id', userId)
-        .eq('sender_domain', senderDomain)
-        .maybeSingle()
-    : { data: null }
+  // 4. Check if sender domain matches any tracked process for this company
+  const group = senderDomain ? await findGroupApps(supabase, userId, senderDomain) : []
 
-  if (!trackedApp) {
+  if (group.length === 0) {
     // Untracked sender → save without AI analysis (tokens saved)
     console.log('[email/inbound] untracked sender domain:', senderDomain, '— saving without AI')
     await supabase.from('email_logs').insert({
@@ -161,7 +156,7 @@ export async function POST(request: NextRequest) {
     console.error('[email/inbound] AI analysis failed:', err)
     await supabase.from('email_logs').insert({
       user_id: userId,
-      application_id: trackedApp.id,
+      application_id: group[0].id,
       subject,
       body_text: bodyText.slice(0, 10000),
       email_type: 'other' as const,
@@ -173,6 +168,18 @@ export async function POST(request: NextRequest) {
     analysis?.status ?? 'unknown',
     analysis?.email_type ?? 'other'
   )
+  const processType: ProcessType = analysis?.process_type ?? 'other'
+
+  const sibling = await findOrCreateSiblingProcess(
+    supabase, userId, senderDomain, group[0].company_name, processType, group
+  )
+  const trackedApp = sibling
+    ? { id: sibling.id, company_name: group[0].company_name, status: sibling.status }
+    : group[0]
+
+  const safeCandidates = sanitizeCandidates(analysis.interview_date_candidates)
+  const safeInterviewDate = safeCandidates[0] ?? toISODateOrNull(analysis.interview_date)
+  const safeEventDate = toISODateOrNull(analysis.event_date)
 
   try {
     // Core update: status + dates (no updated_by — column may not exist yet)
@@ -181,8 +188,11 @@ export async function POST(request: NextRequest) {
       .update({
         status: appStatus,
         latest_email_subject: subject,
-        ...(analysis.interview_date ? { interview_date: analysis.interview_date } : {}),
-        ...(analysis.event_date ? { event_date: analysis.event_date } : {}),
+        ...(safeInterviewDate ? { interview_date: safeInterviewDate } : {}),
+        ...(safeEventDate ? { event_date: safeEventDate } : {}),
+        ...(safeCandidates.length > 0
+          ? { interview_date_candidates: safeCandidates, interview_date_confirmed: safeCandidates.length <= 1 }
+          : {}),
       })
       .eq('id', trackedApp.id)
 

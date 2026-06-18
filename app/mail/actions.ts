@@ -3,23 +3,13 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { analyzeEmail } from '@/lib/gemini'
-import type { ApplicationStatus } from '@/types/database'
+import { toISODateOrNull, sanitizeCandidates } from '@/lib/interview-dates'
+import { countActiveCompanies, findGroupApps, findOrCreateSiblingProcess } from '@/lib/process-routing'
+import type { ApplicationStatus, ProcessType } from '@/types/database'
 
 const FREE_ACTIVE_LIMIT = 5
 const RETROACTIVE_LIMIT = 10    // max past emails to re-analyze
 const ANALYSIS_INTERVAL_MS = 600 // rate-limit delay between Groq calls
-
-// Returns a valid ISO string if parseable, otherwise null.
-// Guards against AI returning "null" string, Japanese dates, or malformed values.
-function toISODateOrNull(val: string | null | undefined): string | null {
-  if (!val || val === 'null' || val === 'undefined') return null
-  try {
-    const d = new Date(val)
-    return isNaN(d.getTime()) ? null : d.toISOString()
-  } catch {
-    return null
-  }
-}
 
 function extractSenderDomain(from: string): string {
   const addr = (from.match(/<([^>]+)>/) ?? [])[1] ?? from
@@ -69,21 +59,29 @@ export async function trackCompany(emailLogId: string): Promise<TrackResult> {
   }
   if (emailLog.application_id) return { error: 'already_tracked' }
 
-  // Check free plan active limit
-  const { data: profile } = await supabase
-    .from('users')
-    .select('plan')
-    .eq('id', user.id)
-    .maybeSingle()
+  // Before migration 014 is applied, emailLog.sender is undefined at runtime → '' → no retroactive.
+  const senderDomain = extractSenderDomain(emailLog.sender ?? '')
 
-  if ((profile?.plan ?? 'free') === 'free') {
-    const { count, error: countErr } = await supabase
-      .from('applications')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-    if (countErr) console.warn('[trackCompany] is_active count error (non-fatal):', countErr.message)
-    if ((count ?? 0) >= FREE_ACTIVE_LIMIT) return { limitReached: true }
+  // Existing processes (rows) at this same company, if any. A non-empty
+  // group means this is a sibling process (e.g. fulltime alongside an
+  // already-tracked internship) — it doesn't consume a new active slot.
+  const group = await findGroupApps(supabase, user.id, senderDomain)
+
+  // Free plan active-slot check only applies to brand-new companies.
+  if (group.length === 0) {
+    const { data: profile } = await supabase
+      .from('users')
+      .select('plan')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if ((profile?.plan ?? 'free') === 'free') {
+      const { data: activeApps } = await supabase
+        .from('applications')
+        .select('sender_domain, company_name, is_active')
+        .eq('user_id', user.id)
+      if (countActiveCompanies(activeApps ?? []) >= FREE_ACTIVE_LIMIT) return { limitReached: true }
+    }
   }
 
   // AI-analyze the clicked email
@@ -100,72 +98,101 @@ export async function trackCompany(emailLogId: string): Promise<TrackResult> {
     return { error: 'analysis_failed' }
   }
 
-  // Before migration 014 is applied, emailLog.sender is undefined at runtime → '' → no retroactive.
-  const senderDomain = extractSenderDomain(emailLog.sender ?? '')
   const companyName = (
     typeof analysis.company_name === 'string' && analysis.company_name.trim()
       ? analysis.company_name.trim()
       : (emailLog.subject ?? '').slice(0, 100)
   )
   const appStatus = mapToApplicationStatus(analysis.status, analysis.email_type)
+  const processType: ProcessType = analysis.process_type ?? 'other'
 
   // Sanitize all date values from AI
-  const safeCandidates = (analysis.interview_date_candidates ?? [])
-    .map(toISODateOrNull)
-    .filter((d): d is string => d !== null)
+  const safeCandidates = sanitizeCandidates(analysis.interview_date_candidates)
   const safeInterviewDate = safeCandidates[0] ?? toISODateOrNull(analysis.interview_date)
   const safeEventDate = toISODateOrNull(analysis.event_date)
 
-  // Create application (omit columns that may not exist yet; set them in a follow-up UPDATE)
-  let insertResult = await supabase
-    .from('applications')
-    .insert({
-      user_id: user.id,
-      company_name: companyName,
-      status: appStatus,
-      latest_email_subject: emailLog.subject,
-      interview_date: safeInterviewDate,
-      event_date: safeEventDate,
-    })
-    .select('id')
-    .single()
+  let appId: string
 
-  // Retry without date columns in case of schema mismatch
-  if (insertResult.error) {
-    console.error('[trackCompany] insert attempt 1 failed:', JSON.stringify(insertResult.error))
-    insertResult = await supabase
+  if (group.length > 0) {
+    // Sibling process at an already-tracked company (or a re-match of an
+    // existing process) — find or create the right row, then update it.
+    const sibling = await findOrCreateSiblingProcess(
+      supabase, user.id, senderDomain, companyName, processType, group
+    )
+    if (!sibling) {
+      console.error('[trackCompany] sibling resolution unexpectedly failed for non-empty group')
+      return { error: 'insert_failed' }
+    }
+    appId = sibling.id
+
+    await supabase
+      .from('applications')
+      .update({
+        status: appStatus,
+        latest_email_subject: emailLog.subject,
+        interview_date: safeInterviewDate,
+        event_date: safeEventDate,
+        updated_by: 'ai',
+        ...(safeCandidates.length > 0
+          ? { interview_date_candidates: safeCandidates, interview_date_confirmed: safeCandidates.length <= 1 }
+          : {}),
+      })
+      .eq('id', appId)
+  } else {
+    // Brand-new company
+    let insertResult = await supabase
       .from('applications')
       .insert({
         user_id: user.id,
         company_name: companyName,
         status: appStatus,
         latest_email_subject: emailLog.subject,
+        interview_date: safeInterviewDate,
+        event_date: safeEventDate,
+        interview_date_confirmed: safeCandidates.length <= 1,
+        process_type: processType,
       })
       .select('id')
       .single()
+
+    // Retry without newer columns in case of schema mismatch (migration not yet applied)
+    if (insertResult.error) {
+      console.error('[trackCompany] insert attempt 1 failed:', JSON.stringify(insertResult.error))
+      insertResult = await supabase
+        .from('applications')
+        .insert({
+          user_id: user.id,
+          company_name: companyName,
+          status: appStatus,
+          latest_email_subject: emailLog.subject,
+        })
+        .select('id')
+        .single()
+    }
+
+    const { data: newApp, error: insertError } = insertResult
+    if (insertError || !newApp) {
+      console.error('[trackCompany] application insert failed (both attempts):', JSON.stringify(insertError))
+      return { error: 'insert_failed' }
+    }
+    appId = newApp.id
+
+    // Set columns that require migrations 013/014/016/017; errors ignored — no-op if columns don't exist yet
+    await supabase
+      .from('applications')
+      .update({
+        ...(senderDomain ? { sender_domain: senderDomain } : {}),
+        updated_by: 'ai',
+        ...(safeCandidates.length > 0 ? { interview_date_candidates: safeCandidates } : {}),
+      })
+      .eq('id', appId)
   }
 
-  const { data: newApp, error: insertError } = insertResult
-  if (insertError || !newApp) {
-    console.error('[trackCompany] application insert failed (both attempts):', JSON.stringify(insertError))
-    return { error: 'insert_failed' }
-  }
-
-  // Set columns that require migrations 013/014/016; errors ignored — no-op if columns don't exist yet
-  await supabase
-    .from('applications')
-    .update({
-      ...(senderDomain ? { sender_domain: senderDomain } : {}),
-      updated_by: 'ai',
-      ...(safeCandidates.length > 0 ? { interview_date_candidates: safeCandidates } : {}),
-    })
-    .eq('id', newApp.id)
-
-  // Link the clicked email log to the new application
+  // Link the clicked email log to the application
   await supabase
     .from('email_logs')
     .update({
-      application_id: newApp.id,
+      application_id: appId,
       email_type: analysis.email_type as 'selection' | 'event' | 'other',
     })
     .eq('id', emailLogId)
@@ -189,12 +216,26 @@ export async function trackCompany(emailLogId: string): Promise<TrackResult> {
     return { ok: true, companyName, retroCount: 0 }
   }
 
-  // Re-analyze past emails with rate limiting
-  let latestStatus: ApplicationStatus = appStatus
-  let latestSubject: string | null = emailLog.subject ?? null
-  let latestInterviewDate: string | null = safeInterviewDate
-  let latestEventDate: string | null = safeEventDate
-  let latestCandidates: string[] = safeCandidates
+  // Mutable view of the company's processes, grown as siblings get created below.
+  const liveGroup: { id: string; process_type: ProcessType | null; is_active: boolean; company_name: string; status: ApplicationStatus }[] =
+    group.length > 0 ? [...group] : [{ id: appId, process_type: processType, is_active: true, company_name: companyName, status: appStatus }]
+
+  // Per-process aggregation of latest state (so each sibling gets its own update)
+  const perProcess = new Map<string, {
+    status: ApplicationStatus
+    subject: string | null
+    interviewDate: string | null
+    eventDate: string | null
+    candidates: string[]
+  }>()
+  perProcess.set(appId, {
+    status: appStatus,
+    subject: emailLog.subject ?? null,
+    interviewDate: safeInterviewDate,
+    eventDate: safeEventDate,
+    candidates: safeCandidates,
+  })
+
   let retroCount = 0
 
   for (const log of untrackedLogs) {
@@ -206,46 +247,62 @@ export async function trackCompany(emailLogId: string): Promise<TrackResult> {
         log.sender ?? ''
       )
       const s = mapToApplicationStatus(a.status, a.email_type)
+      const pType: ProcessType = a.process_type ?? 'other'
+
+      const sibling = await findOrCreateSiblingProcess(
+        supabase, user.id, senderDomain, companyName, pType, liveGroup
+      )
+      const targetId = sibling?.id ?? appId
+      if (sibling?.isNew) {
+        liveGroup.push({ id: sibling.id, process_type: pType, is_active: liveGroup[0]?.is_active ?? true, company_name: companyName, status: sibling.status })
+      }
 
       await supabase
         .from('email_logs')
         .update({
-          application_id: newApp.id,
+          application_id: targetId,
           email_type: a.email_type as 'selection' | 'event' | 'other',
         })
         .eq('id', log.id)
 
-      latestStatus = s
-      latestSubject = log.subject ?? latestSubject
-      const retCandidates = (a.interview_date_candidates ?? [])
-        .map(toISODateOrNull)
-        .filter((d): d is string => d !== null)
+      const retCandidates = sanitizeCandidates(a.interview_date_candidates)
       const d1 = retCandidates[0] ?? toISODateOrNull(a.interview_date)
       const d2 = toISODateOrNull(a.event_date)
-      if (d1) { latestInterviewDate = d1; latestCandidates = retCandidates }
-      if (d2) latestEventDate = d2
+
+      const prev = perProcess.get(targetId)
+      perProcess.set(targetId, {
+        status: s,
+        subject: log.subject ?? prev?.subject ?? null,
+        interviewDate: d1 ?? prev?.interviewDate ?? null,
+        eventDate: d2 ?? prev?.eventDate ?? null,
+        candidates: retCandidates.length > 0 ? retCandidates : prev?.candidates ?? [],
+      })
       retroCount++
     } catch {
       // Link even if analysis fails
       await supabase
         .from('email_logs')
-        .update({ application_id: newApp.id })
+        .update({ application_id: appId })
         .eq('id', log.id)
       retroCount++
     }
   }
 
-  // Update application with latest aggregated state
-  await supabase
-    .from('applications')
-    .update({
-      status: latestStatus,
-      latest_email_subject: latestSubject,
-      ...(latestInterviewDate ? { interview_date: latestInterviewDate } : {}),
-      ...(latestEventDate ? { event_date: latestEventDate } : {}),
-      ...(latestCandidates.length > 0 ? { interview_date_candidates: latestCandidates } : {}),
-    })
-    .eq('id', newApp.id)
+  // Apply aggregated per-process state
+  for (const [id, agg] of perProcess) {
+    await supabase
+      .from('applications')
+      .update({
+        status: agg.status,
+        latest_email_subject: agg.subject,
+        ...(agg.interviewDate ? { interview_date: agg.interviewDate } : {}),
+        ...(agg.eventDate ? { event_date: agg.eventDate } : {}),
+        ...(agg.candidates.length > 0
+          ? { interview_date_candidates: agg.candidates, interview_date_confirmed: agg.candidates.length <= 1 }
+          : {}),
+      })
+      .eq('id', id)
+  }
 
   return { ok: true, companyName, retroCount }
 }

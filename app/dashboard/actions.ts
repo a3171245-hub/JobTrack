@@ -2,6 +2,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { companyGroupKey, countActiveCompanies } from '@/lib/process-routing'
 import type { ApplicationStatus, TestResult } from '@/types/database'
 
 const FREE_ACTIVE_LIMIT = 5
@@ -59,15 +60,15 @@ export async function addApplication(
 
   const plan = profile?.plan ?? 'free'
 
-  // Free plan: cap active count at 5; new company added as inactive when at limit
+  // Free plan: cap active count at 5 companies (multi-process companies count once);
+  // new company added as inactive when at limit
   let isActive = true
   if (plan === 'free') {
-    const { count } = await supabase
+    const { data: existingApps } = await supabase
       .from('applications')
-      .select('id', { count: 'exact', head: true })
+      .select('sender_domain, company_name, is_active')
       .eq('user_id', userId)
-      .eq('is_active', true)
-    if ((count ?? 0) >= FREE_ACTIVE_LIMIT) isActive = false
+    if (countActiveCompanies(existingApps ?? []) >= FREE_ACTIVE_LIMIT) isActive = false
   }
 
   const sanitizedName = companyName.trim().slice(0, 200)
@@ -109,6 +110,9 @@ export async function addApplication(
   return { id: data.id, isActive }
 }
 
+// Pin/unpin operates per company, not per process row — toggling one
+// process at a company toggles all sibling processes at that company too,
+// since the active-slot limit is counted per company.
 export async function setApplicationActive(
   applicationId: string,
   isActive: boolean
@@ -118,6 +122,24 @@ export async function setApplicationActive(
 
   const supabase = createAdminClient()
 
+  const { data: target } = await supabase
+    .from('applications')
+    .select('sender_domain, company_name')
+    .eq('id', applicationId)
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (!target) return { limitReached: true }
+
+  const { data: allApps } = await supabase
+    .from('applications')
+    .select('id, sender_domain, company_name, is_active')
+    .eq('user_id', userId)
+
+  const apps = allApps ?? []
+  const targetKey = companyGroupKey(target)
+  const siblingIds = apps.filter((a) => companyGroupKey(a) === targetKey).map((a) => a.id)
+
   if (isActive) {
     const { data: profile } = await supabase
       .from('users')
@@ -126,21 +148,42 @@ export async function setApplicationActive(
       .maybeSingle()
 
     if ((profile?.plan ?? 'free') === 'free') {
-      const { count } = await supabase
-        .from('applications')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('is_active', true)
-      if ((count ?? 0) >= FREE_ACTIVE_LIMIT) return { limitReached: true }
+      const othersActiveCount = countActiveCompanies(
+        apps.filter((a) => companyGroupKey(a) !== targetKey)
+      )
+      if (othersActiveCount >= FREE_ACTIVE_LIMIT) return { limitReached: true }
     }
   }
 
   await supabase
     .from('applications')
     .update({ is_active: isActive })
+    .in('id', siblingIds)
+    .eq('user_id', userId)
+
+  return { ok: true }
+}
+
+// Persists the user's explicit pick among multiple AI-extracted interview
+// date candidates (clears the "日程未確定" dashboard notice for this process).
+export async function confirmInterviewDate(
+  applicationId: string,
+  date: string
+): Promise<{ ok: true } | { ok: false }> {
+  const userId = await getCurrentUserId()
+  if (!userId) return { ok: false }
+
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from('applications')
+    .update({ interview_date: date, interview_date_confirmed: true })
     .eq('id', applicationId)
     .eq('user_id', userId)
 
+  if (error) {
+    console.error('confirmInterviewDate error:', error)
+    return { ok: false }
+  }
   return { ok: true }
 }
 

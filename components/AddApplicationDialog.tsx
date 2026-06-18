@@ -76,9 +76,11 @@ export default function AddApplicationDialog({
         es_deadline: null,
         custom_flow: null,
         gd_date: null,
+        interview_date_confirmed: true,
         is_active: result.isActive,
         updated_by: 'ai',
         sender_domain: null,
+        process_type: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }

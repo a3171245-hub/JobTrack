@@ -13,6 +13,7 @@ import type { Database, ApplicationStatus } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { readOverlay, writeOverlay } from '@/lib/status-overlay'
 import { setApplicationActive } from '@/app/dashboard/actions'
+import { countActiveCompanies, companyGroupKey } from '@/lib/process-routing'
 import { toast } from 'sonner'
 
 type Application = Database['public']['Tables']['applications']['Row']
@@ -56,7 +57,7 @@ export function DashboardProvider({
   const [todayUpdates, setTodayUpdates] = useState<UpdateRecord[]>(initialTodayUpdates)
   const overlayRef = useRef<Record<string, ApplicationStatus>>({})
 
-  const activeCount = applications.filter((a) => a.is_active !== false).length
+  const activeCount = countActiveCompanies(applications)
 
   // マウント時：未確定の変更を復元してバックグラウンドで再送
   useEffect(() => {
@@ -161,18 +162,23 @@ export function DashboardProvider({
       const target = applications.find((a) => a.id === id)
       if (!target) return
 
-      // クライアント側でも上限チェック（楽観的更新前）
+      const targetKey = companyGroupKey(target)
+      const siblingIds = applications.filter((a) => companyGroupKey(a) === targetKey).map((a) => a.id)
+
+      // クライアント側でも上限チェック（楽観的更新前）— 自社（兄弟プロセス含む）を除いた件数で判定
       if (newIsActive && plan === 'free') {
-        const currentActiveCount = applications.filter((a) => a.is_active !== false).length
-        if (currentActiveCount >= FREE_ACTIVE_LIMIT) {
+        const othersActiveCount = countActiveCompanies(
+          applications.filter((a) => companyGroupKey(a) !== targetKey)
+        )
+        if (othersActiveCount >= FREE_ACTIVE_LIMIT) {
           toast.error(`アクティブ枠の上限（${FREE_ACTIVE_LIMIT}社）に達しています。他の企業をピン留め解除してください。`)
           return
         }
       }
 
-      // 楽観的更新
+      // 楽観的更新（同企業の兄弟プロセスも含めて切り替え）
       setApplications((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, is_active: newIsActive } : a))
+        prev.map((a) => (siblingIds.includes(a.id) ? { ...a, is_active: newIsActive } : a))
       )
 
       const result = await setApplicationActive(id, newIsActive)
@@ -180,7 +186,7 @@ export function DashboardProvider({
       if ('limitReached' in result) {
         // ロールバック
         setApplications((prev) =>
-          prev.map((a) => (a.id === id ? { ...a, is_active: !newIsActive } : a))
+          prev.map((a) => (siblingIds.includes(a.id) ? { ...a, is_active: !newIsActive } : a))
         )
         toast.error(`アクティブ枠の上限（${FREE_ACTIVE_LIMIT}社）に達しています。`)
         return

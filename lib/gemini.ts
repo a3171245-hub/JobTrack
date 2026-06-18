@@ -1,4 +1,5 @@
 import Groq from 'groq-sdk'
+import type { ProcessType } from '@/types/database'
 
 export interface EmailAnalysis {
   company_name: string
@@ -9,6 +10,9 @@ export interface EmailAnalysis {
   // All interview date candidates. May be 0, 1, or many (e.g. 候補A/B/C emails).
   interview_date_candidates: string[]
   event_date: string | null
+  // Which selection process this email belongs to, for companies running
+  // multiple processes in parallel (e.g. internship + new-grad fulltime).
+  process_type: ProcessType
 }
 
 export async function analyzeEmail(
@@ -33,6 +37,7 @@ ${body.slice(0, 3000)}
 - status: offer/rejected/interview_1/interview_2/final/document/schedule/unknown
 - interview_date_candidates: 面接日程候補を全てISO8601形式の配列で返す（候補A/B/C形式の場合は全て含める）。日程がない場合は空配列[]
 - event_date: イベント日程がある場合ISO8601形式、なければnull
+- process_type: この企業で進んでいる選考の種類。'internship'（インターン選考・サマーインターン等）、'fulltime'（本選考・新卒採用）、判断できない場合は'other'
 
 必ずJSON形式のみで返答してください。`
 
@@ -63,5 +68,7 @@ ${body.slice(0, 3000)}
     interview_date: candidates[0] ?? null,
     event_date: typeof parsed.event_date === 'string' && parsed.event_date !== 'null'
       ? parsed.event_date : null,
+    process_type: (['internship', 'fulltime', 'other'].includes(parsed.process_type as string)
+      ? parsed.process_type : 'other') as ProcessType,
   }
 }

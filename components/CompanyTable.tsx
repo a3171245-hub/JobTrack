@@ -10,6 +10,7 @@ import AddApplicationDialog from '@/components/AddApplicationDialog'
 import { useDashboard } from '@/contexts/DashboardContext'
 import { deleteApplication } from '@/app/dashboard/actions'
 import { AFFILIATE_URL } from '@/lib/constants'
+import { companyGroupKey, PROCESS_TYPE_LABELS } from '@/lib/process-routing'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import {
@@ -79,6 +80,47 @@ function CompanyAvatar({ name }: { name: string }) {
   return (
     <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-sm flex-shrink-0 ${color}`}>
       {initial}
+    </div>
+  )
+}
+
+// Groups applications by company (sender_domain, or company_name for manual
+// entries) so multiple selection processes at the same company (e.g.
+// internship + fulltime) render together under one company card/row.
+function groupByCompany<T extends { sender_domain: string | null; company_name: string }>(apps: T[]): T[][] {
+  const map = new Map<string, T[]>()
+  for (const a of apps) {
+    const key = companyGroupKey(a)
+    if (!map.has(key)) map.set(key, [])
+    map.get(key)!.push(a)
+  }
+  return [...map.values()]
+}
+
+function pickRepresentative<T extends { updated_at: string }>(group: T[]): T {
+  return group.reduce((best, a) => (new Date(a.updated_at) > new Date(best.updated_at) ? a : best), group[0])
+}
+
+// Stacked "プロセス名: ステータス" list for companies with 2+ active processes.
+function ProcessStatusList({
+  group,
+}: {
+  group: ReturnType<typeof useDashboard>['applications']
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      {group.map((p) => (
+        <div key={p.id} className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+            {PROCESS_TYPE_LABELS[p.process_type ?? 'other']}：
+          </span>
+          <InlineStatusBadge
+            applicationId={p.id}
+            status={p.status}
+            updatedBy={p.updated_by ?? 'ai'}
+          />
+        </div>
+      ))}
     </div>
   )
 }
@@ -348,6 +390,8 @@ function TableBody({
     )
   }
 
+  const groups = groupByCompany(apps)
+
   return (
     <>
       {/* ── PC テーブル（md以上） ────────────────────────── */}
@@ -364,13 +408,15 @@ function TableBody({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-            {apps.map((app) => {
+            {groups.map((group) => {
+              const app = pickRepresentative(group)
+              const isMulti = group.length > 1
               const deadlineSoon = isDeadlineSoon(app.es_deadline)
               const isActive = app.is_active !== false
 
               return (
                 <tr
-                  key={app.id}
+                  key={companyGroupKey(app)}
                   className={cn(
                     'group transition-all duration-150 border-l-[3px] border-l-transparent hover:border-l-indigo-500',
                     isInactiveSection
@@ -389,11 +435,15 @@ function TableBody({
                     </div>
                   </td>
                   <td className="px-5 py-4">
-                    <InlineStatusBadge
-                      applicationId={app.id}
-                      status={app.status}
-                      updatedBy={app.updated_by ?? 'ai'}
-                    />
+                    {isMulti ? (
+                      <ProcessStatusList group={group} />
+                    ) : (
+                      <InlineStatusBadge
+                        applicationId={app.id}
+                        status={app.status}
+                        updatedBy={app.updated_by ?? 'ai'}
+                      />
+                    )}
                   </td>
                   <td className="px-5 py-4 hidden md:table-cell">
                     <div>
@@ -438,7 +488,7 @@ function TableBody({
                           <button
                             onClick={() => onToggleActive(app.id, false)}
                             className="text-slate-300 dark:text-slate-700 hover:text-amber-500 dark:hover:text-amber-400 transition-colors opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-amber-50 dark:hover:bg-amber-950/30"
-                            title="ピン留め解除"
+                            title="ピン留め解除（同企業の全プロセス）"
                           >
                             <PinOff className="w-3.5 h-3.5" />
                           </button>
@@ -457,23 +507,48 @@ function TableBody({
                           </button>
                         )
                       )}
-                      <button
-                        onClick={() => onDelete(app.id, app.company_name)}
-                        className="text-slate-300 dark:text-slate-700 hover:text-rose-500 dark:hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                        aria-label="追跡解除"
-                        title="追跡を解除"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                      <Link
-                        href={`/dashboard/company/${app.id}`}
-                        className={cn(
-                          buttonVariants({ variant: 'ghost', size: 'sm' }),
-                          'opacity-0 group-hover:opacity-100 transition-opacity gap-0.5 px-2 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40'
-                        )}
-                      >
-                        詳細 <ChevronRight className="w-3.5 h-3.5" />
-                      </Link>
+                      {!isMulti && (
+                        <button
+                          onClick={() => onDelete(app.id, app.company_name)}
+                          className="text-slate-300 dark:text-slate-700 hover:text-rose-500 dark:hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                          aria-label="追跡解除"
+                          title="追跡を解除"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {isMulti ? (
+                        <div className="flex flex-col gap-1 items-end opacity-0 group-hover:opacity-100 transition-opacity">
+                          {group.map((p) => (
+                            <div key={p.id} className="flex items-center gap-1">
+                              <button
+                                onClick={() => onDelete(p.id, `${p.company_name}（${PROCESS_TYPE_LABELS[p.process_type ?? 'other']}）`)}
+                                className="text-slate-300 dark:text-slate-700 hover:text-rose-500 dark:hover:text-rose-400 p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                                aria-label="追跡解除"
+                                title="追跡を解除"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                              <Link
+                                href={`/dashboard/company/${p.id}`}
+                                className="text-xs gap-0.5 px-1.5 py-0.5 rounded text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 flex items-center"
+                              >
+                                {PROCESS_TYPE_LABELS[p.process_type ?? 'other']}詳細 <ChevronRight className="w-3 h-3" />
+                              </Link>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <Link
+                          href={`/dashboard/company/${app.id}`}
+                          className={cn(
+                            buttonVariants({ variant: 'ghost', size: 'sm' }),
+                            'opacity-0 group-hover:opacity-100 transition-opacity gap-0.5 px-2 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40'
+                          )}
+                        >
+                          詳細 <ChevronRight className="w-3.5 h-3.5" />
+                        </Link>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -485,13 +560,15 @@ function TableBody({
 
       {/* ── モバイル カードリスト（md未満） ─────────────────── */}
       <div className="md:hidden space-y-2.5">
-        {apps.map((app) => {
+        {groups.map((group) => {
+          const app = pickRepresentative(group)
+          const isMulti = group.length > 1
           const deadlineSoon = isDeadlineSoon(app.es_deadline)
           const isActive = app.is_active !== false
 
           return (
             <div
-              key={app.id}
+              key={companyGroupKey(app)}
               className={cn(
                 'bg-white dark:bg-slate-900/80 rounded-2xl border overflow-hidden shadow-sm transition-colors',
                 isInactiveSection
@@ -508,11 +585,15 @@ function TableBody({
                   <p className="font-semibold text-slate-900 dark:text-slate-100 truncate text-[15px] mb-1.5">
                     {app.company_name}
                   </p>
-                  <InlineStatusBadge
-                    applicationId={app.id}
-                    status={app.status}
-                    updatedBy={app.updated_by ?? 'ai'}
-                  />
+                  {isMulti ? (
+                    <ProcessStatusList group={group} />
+                  ) : (
+                    <InlineStatusBadge
+                      applicationId={app.id}
+                      status={app.status}
+                      updatedBy={app.updated_by ?? 'ai'}
+                    />
+                  )}
                   {app.latest_email_subject && (
                     <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 truncate">
                       {app.latest_email_subject}
@@ -540,7 +621,7 @@ function TableBody({
                       <button
                         onClick={() => onToggleActive(app.id, false)}
                         className="p-2.5 text-amber-500 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-xl transition-colors"
-                        title="ピン留め解除"
+                        title="ピン留め解除（同企業の全プロセス）"
                       >
                         <PinOff className="w-4 h-4" />
                       </button>
@@ -570,20 +651,36 @@ function TableBody({
                       <ExternalLink className="w-4 h-4" />
                     </a>
                   )}
-                  <button
-                    onClick={() => onDelete(app.id, app.company_name)}
-                    className="p-2.5 text-slate-300 dark:text-slate-700 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl transition-colors"
-                    aria-label="削除"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {!isMulti && (
+                    <button
+                      onClick={() => onDelete(app.id, app.company_name)}
+                      className="p-2.5 text-slate-300 dark:text-slate-700 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl transition-colors"
+                      aria-label="削除"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
-                <Link
-                  href={`/dashboard/company/${app.id}`}
-                  className="flex items-center gap-1 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 py-2 px-3 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors"
-                >
-                  詳細 <ChevronRight className="w-3.5 h-3.5" />
-                </Link>
+                {isMulti ? (
+                  <div className="flex flex-col gap-1 items-end py-1">
+                    {group.map((p) => (
+                      <Link
+                        key={p.id}
+                        href={`/dashboard/company/${p.id}`}
+                        className="flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 py-1 px-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors"
+                      >
+                        {PROCESS_TYPE_LABELS[p.process_type ?? 'other']}詳細 <ChevronRight className="w-3 h-3" />
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <Link
+                    href={`/dashboard/company/${app.id}`}
+                    className="flex items-center gap-1 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 py-2 px-3 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors"
+                  >
+                    詳細 <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
+                )}
               </div>
             </div>
           )

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import TodayUpdates from '@/components/TodayUpdates'
+import UnconfirmedScheduleBanner from '@/components/UnconfirmedScheduleBanner'
 import CompanyTable from '@/components/CompanyTable'
 import AddApplicationDialog from '@/components/AddApplicationDialog'
 import DedicatedEmailBanner from '@/components/DedicatedEmailBanner'
@@ -62,6 +63,7 @@ function Inner({
   return (
     <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 animate-fade-in min-h-screen">
       <TodayUpdates />
+      <UnconfirmedScheduleBanner />
 
       {dedicatedEmail && (
         <div className="mt-6">

@@ -7,6 +7,7 @@ import { ja } from 'date-fns/locale'
 import { Mail, X, CalendarDays, Check, Search, BookmarkPlus, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { trackCompany } from '@/app/mail/actions'
+import { confirmInterviewDate } from '@/app/dashboard/actions'
 
 type EmailLog = {
   id: string
@@ -69,12 +70,13 @@ function saveSet(key: string, set: Set<string>) {
 
 // ─── Calendar Prompt ──────────────────────────────────────────────
 function CalendarPrompt({
-  companyName, candidates, dateType, userId, onDone,
+  companyName, candidates, dateType, userId, applicationId, onDone,
 }: {
   companyName: string
   candidates: string[]  // at least one
   dateType: 'interview' | 'event'
   userId: string
+  applicationId: string | null
   onDone: () => void
 }) {
   const [selectedDate, setSelectedDate] = useState(candidates[0])
@@ -94,6 +96,10 @@ function CalendarPrompt({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, title: `${companyName} — ${label}`, date: selectedDate, type: dateType }),
       })
+      // Persist the user's pick so the dashboard's "日程未確定" notice clears
+      if (dateType === 'interview' && applicationId) {
+        await confirmInterviewDate(applicationId, selectedDate)
+      }
       setStatus('done')
       setTimeout(onDone, 800)
     } catch {
@@ -228,6 +234,7 @@ function MailModal({
             candidates={calendarCandidates}
             dateType={calendarType}
             userId={userId}
+            applicationId={log.application_id}
             onDone={handleCalendarDone}
           />
         )}
