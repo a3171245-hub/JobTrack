@@ -15,6 +15,14 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 })
 
+// Vercel のサーバーレス関数は未指定だと iad1（米国東部）で実行される。
+// 利用者・Supabase ともに日本付近にあるため、米国東部との往復遅延が
+// ページ遷移ごとに ~300-400ms 乗っていた（計測: 同一ルートへの
+// ウォーム状態の連続リクエストでも一貫してこの遅延が出ており、
+// クエリ内容やコールドスタートでは説明できなかった）。
+// 全ページで共通して効く設定なのでルートレイアウトに置く。
+export const preferredRegion = 'hnd1'
+
 export const metadata: Metadata = {
   title: 'JobTrack - 就活メール自動追跡サービス',
   description:
