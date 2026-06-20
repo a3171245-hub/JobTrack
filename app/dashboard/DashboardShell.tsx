@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import TodayUpdates from '@/components/TodayUpdates'
+import type { TodayMailItem } from '@/components/TodayUpdates'
+import UpcomingSchedule from '@/components/UpcomingSchedule'
 import UnconfirmedScheduleBanner from '@/components/UnconfirmedScheduleBanner'
 import CompanyTable from '@/components/CompanyTable'
 import AddApplicationDialog from '@/components/AddApplicationDialog'
@@ -51,19 +53,28 @@ const DashboardProvider = dynamic(
 
 function Inner({
   applications,
+  todayMails,
   dedicatedEmail,
+  userEmail,
   plan,
 }: {
   applications: Application[]
+  todayMails: TodayMailItem[]
   dedicatedEmail?: string | null
+  userEmail?: string | null
   plan: 'free' | 'premium'
 }) {
   const [shareOpen, setShareOpen] = useState(false)
 
   return (
     <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 animate-fade-in min-h-screen">
-      <TodayUpdates />
-      <UnconfirmedScheduleBanner />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <TodayUpdates todayMails={todayMails} />
+        <UpcomingSchedule />
+      </div>
+      <div className="mt-6">
+        <UnconfirmedScheduleBanner />
+      </div>
 
       {dedicatedEmail && (
         <div className="mt-6">
@@ -114,6 +125,7 @@ function Inner({
       {shareOpen && (
         <ShareCardDialog
           applications={applications}
+          userEmail={userEmail}
           onClose={() => setShareOpen(false)}
         />
       )}
@@ -124,12 +136,16 @@ function Inner({
 export default function DashboardShell({
   applications,
   initialTodayUpdates,
+  todayMails = [],
   dedicatedEmail,
+  userEmail,
   plan = 'free',
 }: {
   applications: Application[]
   initialTodayUpdates: UpdateRecord[]
+  todayMails?: TodayMailItem[]
   dedicatedEmail?: string | null
+  userEmail?: string | null
   plan?: 'free' | 'premium'
 }) {
   return (
@@ -140,7 +156,9 @@ export default function DashboardShell({
     >
       <Inner
         applications={applications}
+        todayMails={todayMails}
         dedicatedEmail={dedicatedEmail}
+        userEmail={userEmail}
         plan={plan}
       />
     </DashboardProvider>

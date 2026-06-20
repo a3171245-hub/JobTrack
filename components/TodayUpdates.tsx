@@ -2,9 +2,16 @@
 
 import { useDashboard } from '@/contexts/DashboardContext'
 import { STATUS_LABELS } from '@/lib/constants'
-import { ArrowRight, Sparkles, AlertCircle, PlusCircle } from 'lucide-react'
+import { ArrowRight, Sparkles, AlertCircle, PlusCircle, Mail } from 'lucide-react'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
+
+export interface TodayMailItem {
+  id: string
+  companyName: string
+  subject: string
+  receivedAt: string
+}
 
 function isSameDate(a: Date, b: Date) {
   return (
@@ -14,7 +21,11 @@ function isSameDate(a: Date, b: Date) {
   )
 }
 
-export default function TodayUpdates() {
+export default function TodayUpdates({
+  todayMails = [],
+}: {
+  todayMails?: TodayMailItem[]
+}) {
   const { todayUpdates, applications } = useDashboard()
 
   const today = new Date()
@@ -23,7 +34,7 @@ export default function TodayUpdates() {
     return isSameDate(new Date(a.es_deadline), today)
   })
 
-  const totalCount = todayUpdates.length + todayDeadlines.length
+  const totalCount = todayUpdates.length + todayDeadlines.length + todayMails.length
 
   return (
     <div className="bg-white dark:bg-slate-900/80 rounded-2xl ring-1 ring-slate-900/5 dark:ring-slate-700/60 shadow-sm overflow-hidden animate-fade-in-up transition-colors border-l-4 border-l-indigo-500">
@@ -62,7 +73,7 @@ export default function TodayUpdates() {
             {todayUpdates.map((update, i) => (
               <TimelineRow
                 key={update.id}
-                last={i === todayUpdates.length - 1}
+                last={i === todayUpdates.length - 1 && todayMails.length === 0}
                 dotClass={update.action ? 'bg-emerald-500' : 'bg-indigo-500'}
                 time={format(new Date(update.timestamp), 'HH:mm', { locale: ja })}
               >
@@ -85,6 +96,22 @@ export default function TodayUpdates() {
                     </span>
                   </span>
                 )}
+              </TimelineRow>
+            ))}
+            {todayMails.map((mail, i) => (
+              <TimelineRow
+                key={`mail-${mail.id}`}
+                last={i === todayMails.length - 1}
+                dotClass="bg-sky-500"
+                time={format(new Date(mail.receivedAt), 'HH:mm', { locale: ja })}
+              >
+                <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[180px]">
+                  {mail.companyName}
+                </span>
+                <span className="flex items-center gap-1 text-xs font-medium text-sky-600 dark:text-sky-400 truncate max-w-[200px]">
+                  <Mail className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="truncate">{mail.subject}</span>
+                </span>
               </TimelineRow>
             ))}
           </ol>

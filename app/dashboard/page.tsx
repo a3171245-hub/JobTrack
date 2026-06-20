@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import NavBar from '@/components/NavBar'
 import DashboardShell from './DashboardShell'
 import type { UpdateRecord } from '@/contexts/DashboardContext'
+import type { TodayMailItem } from '@/components/TodayUpdates'
 import type { ApplicationStatus } from '@/types/database'
 import type { User } from '@supabase/supabase-js'
 
@@ -32,8 +33,9 @@ export default async function DashboardPage() {
   }
 
   const supabase = createAdminClient()
+  const todayStart = new Date(new Date().setHours(0, 0, 0, 0)).toISOString()
 
-  const [applicationsResult, profileResult, logsResult] =
+  const [applicationsResult, profileResult, logsResult, mailsResult] =
     await Promise.allSettled([
       supabase
         .from('applications')
@@ -50,10 +52,14 @@ export default async function DashboardPage() {
         .select('*')
         .eq('user_id', user.id)
         .eq('email_type', 'manual_update')
-        .gte(
-          'received_at',
-          new Date(new Date().setHours(0, 0, 0, 0)).toISOString()
-        )
+        .gte('received_at', todayStart)
+        .order('received_at', { ascending: false }),
+      supabase
+        .from('email_logs')
+        .select('id, application_id, subject, received_at')
+        .eq('user_id', user.id)
+        .neq('email_type', 'manual_update')
+        .gte('received_at', todayStart)
         .order('received_at', { ascending: false }),
     ])
 
@@ -103,6 +109,21 @@ export default async function DashboardPage() {
     })
     .filter(Boolean) as UpdateRecord[]
 
+  const companyNameById = new Map(applications.map((a) => [a.id, a.company_name]))
+  const rawMails =
+    mailsResult.status === 'fulfilled' && mailsResult.value.data
+      ? mailsResult.value.data
+      : []
+
+  const todayMails: TodayMailItem[] = rawMails.map((log) => ({
+    id: log.id,
+    companyName: log.application_id
+      ? companyNameById.get(log.application_id) ?? '企業未紐付け'
+      : '企業未紐付け',
+    subject: log.subject ?? '(件名なし)',
+    receivedAt: log.received_at,
+  }))
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-gradient-to-br dark:from-indigo-950 dark:via-[#1e1b4b] dark:to-violet-900">
       <NavBar user={user} dedicatedEmail={dedicatedEmail} />
@@ -111,7 +132,9 @@ export default async function DashboardPage() {
       <DashboardShell
         applications={applications}
         initialTodayUpdates={initialTodayUpdates}
+        todayMails={todayMails}
         dedicatedEmail={dedicatedEmail}
+        userEmail={user.email ?? null}
         plan={plan}
       />
     </div>
