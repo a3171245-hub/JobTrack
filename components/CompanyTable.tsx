@@ -75,6 +75,41 @@ function EsDeadlineCell({ deadline }: { deadline: string | null }) {
   return <span className="text-xs text-slate-500 dark:text-slate-500">{dateStr} <span className="text-slate-400 dark:text-slate-600">{daysLeft}日後</span></span>
 }
 
+function InterviewDateCell({
+  applicationId,
+  interviewDate,
+  interviewDateConfirmed,
+  candidateCount,
+}: {
+  applicationId: string
+  interviewDate: string | null
+  interviewDateConfirmed: boolean
+  candidateCount: number
+}) {
+  if (!interviewDateConfirmed && candidateCount > 0) {
+    return (
+      <Link
+        href={`/mail?company=${applicationId}`}
+        className="inline-flex items-center gap-1.5 text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-950/50 hover:bg-violet-200 dark:hover:bg-violet-900/60 rounded-lg px-2.5 py-1.5 w-fit text-xs font-medium transition-colors"
+      >
+        <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
+        候補を選ぶ
+      </Link>
+    )
+  }
+  if (interviewDate) {
+    return (
+      <div className="flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 rounded-lg px-2.5 py-1.5 w-fit">
+        <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
+        <span className="text-xs font-medium">
+          {format(new Date(interviewDate), 'M/d(E) HH:mm', { locale: ja })}
+        </span>
+      </div>
+    )
+  }
+  return <span className="text-slate-300 dark:text-slate-700 text-xs">—</span>
+}
+
 function InfoTooltip({ text }: { text: string }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLSpanElement>(null)
@@ -457,12 +492,16 @@ function TableBody({
                   )}
                 >
                   <td className="px-5 py-4">
-                    <div className="flex items-center gap-3">
+                    <Link
+                      href={`/mail?company=${app.id}`}
+                      className="flex items-center gap-3 hover:underline"
+                      title="最新メールを開く"
+                    >
                       <CompanyAvatar name={app.company_name} />
                       <span className="font-semibold text-slate-900 dark:text-slate-100 truncate max-w-[160px]">
                         {app.company_name}
                       </span>
-                    </div>
+                    </Link>
                   </td>
                   <td className="px-5 py-4">
                     {isMulti ? (
@@ -486,16 +525,12 @@ function TableBody({
                     </div>
                   </td>
                   <td className="px-5 py-4 hidden lg:table-cell">
-                    {app.interview_date ? (
-                      <div className="flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 rounded-lg px-2.5 py-1.5 w-fit">
-                        <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span className="text-xs font-medium">
-                          {format(new Date(app.interview_date), 'M/d(E) HH:mm', { locale: ja })}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-slate-300 dark:text-slate-700 text-xs">—</span>
-                    )}
+                    <InterviewDateCell
+                      applicationId={app.id}
+                      interviewDate={app.interview_date}
+                      interviewDateConfirmed={app.interview_date_confirmed}
+                      candidateCount={app.interview_date_candidates?.length ?? 0}
+                    />
                   </td>
                   <td className="px-5 py-4 hidden xl:table-cell">
                     <EsDeadlineCell deadline={app.es_deadline ?? null} />
@@ -624,9 +659,12 @@ function TableBody({
               <div className="px-4 pt-4 pb-3 flex items-start gap-3">
                 <CompanyAvatar name={app.company_name} />
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-slate-900 dark:text-slate-100 truncate text-[15px] mb-1.5">
+                  <Link
+                    href={`/mail?company=${app.id}`}
+                    className="font-semibold text-slate-900 dark:text-slate-100 truncate text-[15px] mb-1.5 block hover:underline"
+                  >
                     {app.company_name}
-                  </p>
+                  </Link>
                   {isMulti ? (
                     <ProcessStatusList group={group} />
                   ) : (
@@ -641,12 +679,16 @@ function TableBody({
                       {app.latest_email_subject}
                     </p>
                   )}
-                  {app.interview_date && (
-                    <div className="flex items-center gap-1 mt-1.5 text-xs text-indigo-600 dark:text-indigo-400">
-                      <CalendarDays className="w-3 h-3 flex-shrink-0" />
-                      <span>{format(new Date(app.interview_date), 'M/d(E) HH:mm', { locale: ja })}</span>
+                  {(!app.interview_date_confirmed && (app.interview_date_candidates?.length ?? 0) > 0) || app.interview_date ? (
+                    <div className="mt-1.5">
+                      <InterviewDateCell
+                        applicationId={app.id}
+                        interviewDate={app.interview_date}
+                        interviewDateConfirmed={app.interview_date_confirmed}
+                        candidateCount={app.interview_date_candidates?.length ?? 0}
+                      />
                     </div>
-                  )}
+                  ) : null}
                   {app.es_deadline && (
                     <div className="mt-1">
                       <EsDeadlineCell deadline={app.es_deadline} />

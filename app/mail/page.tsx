@@ -9,7 +9,12 @@ const DEV_USER_ID = 'f64e9d5e-0cf4-4496-bc25-90b9e58fa2c8'
 
 const MAIL_FETCH_LIMIT = 200
 
-export default async function MailPage() {
+export default async function MailPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ company?: string }>
+}) {
+  const { company: initialCompanyId } = await searchParams
   const authClient = await createClient()
   const { data: { user: sessionUser } } = await authClient.auth.getUser()
 
@@ -82,6 +87,7 @@ export default async function MailPage() {
           appDateMap={appDateMap}
           userId={user.id}
           activeCount={activeCount}
+          initialCompanyId={initialCompanyId}
         />
       </main>
     </div>

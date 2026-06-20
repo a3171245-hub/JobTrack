@@ -328,18 +328,24 @@ export default function MailList({
   appDateMap = {},
   userId = '',
   activeCount = 0,
+  initialCompanyId,
 }: {
   logs: EmailLog[]
   companyMap: Record<string, string>
   appDateMap?: Record<string, { status?: string; interview_date: string | null; interview_date_candidates?: string[] | null; event_date: string | null }>
   userId?: string
   activeCount?: number
+  initialCompanyId?: string
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [trackingId, setTrackingId] = useState<string | null>(null)
 
-  const [selectedLog, setSelectedLog] = useState<EmailLog | null>(null)
+  const [selectedLog, setSelectedLog] = useState<EmailLog | null>(() =>
+    initialCompanyId
+      ? logs.find((log) => log.application_id === initialCompanyId) ?? null
+      : null
+  )
   const [readIds, setReadIds] = useState<Set<string>>(new Set())
 
   // Filter states
