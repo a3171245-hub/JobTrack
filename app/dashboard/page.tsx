@@ -44,7 +44,7 @@ export default async function DashboardPage() {
         .order('updated_at', { ascending: false }),
       supabase
         .from('users')
-        .select('dedicated_email, plan')
+        .select('dedicated_email')
         .eq('id', user.id)
         .maybeSingle(),
       supabase
@@ -81,7 +81,8 @@ export default async function DashboardPage() {
       .eq('id', user.id)
   }
 
-  const plan = (rawProfile?.plan ?? 'free') as 'free' | 'premium'
+  // `plan` 列は実テーブルに存在しないため、常に 'free' として扱う
+  const plan: 'free' | 'premium' = 'free'
 
   const rawLogs =
     logsResult.status === 'fulfilled' && logsResult.value.data

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -73,6 +73,42 @@ function EsDeadlineCell({ deadline }: { deadline: string | null }) {
   if (daysLeft <= 7)
     return <span className="text-xs font-medium text-amber-600 dark:text-amber-400">{dateStr} <span className="text-amber-400 dark:text-amber-500">{daysLeft}日後</span></span>
   return <span className="text-xs text-slate-500 dark:text-slate-500">{dateStr} <span className="text-slate-400 dark:text-slate-600">{daysLeft}日後</span></span>
+}
+
+function InfoTooltip({ text }: { text: string }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLSpanElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [open])
+
+  return (
+    <span ref={ref} className="relative inline-flex group">
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v) }}
+        className="ml-0.5 w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-600 text-[10px] leading-[13px] text-slate-400 dark:text-slate-500 hover:border-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors cursor-help flex items-center justify-center"
+        aria-label="説明を表示"
+      >
+        ？
+      </button>
+      <span
+        role="tooltip"
+        className={cn(
+          'absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-60 px-3 py-2 rounded-lg bg-slate-800 dark:bg-slate-700 text-white text-[11px] leading-relaxed shadow-lg z-50 transition-opacity pointer-events-none',
+          open ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+        )}
+      >
+        {text}
+      </span>
+    </span>
+  )
 }
 
 function CompanyAvatar({ name }: { name: string }) {
@@ -230,12 +266,7 @@ export default function CompanyTable() {
             {activeCount} / 5社
           </span>
         </span>
-        <span
-          className="ml-0.5 text-slate-300 dark:text-slate-600 cursor-help"
-          title="現在5社まで無料でAI解析できます。枠を超えた企業は「未追跡」として保存され、空きができると自動で対象になります。"
-        >
-          ？
-        </span>
+        <InfoTooltip text="現在5社まで無料でAI解析できます。追跡を解除して空きを作ることができます。" />
       </div>
 
       {/* 検索・フィルターバー */}
