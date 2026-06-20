@@ -7,6 +7,9 @@ import type { User } from '@supabase/supabase-js'
 
 const DEV_USER_ID = 'f64e9d5e-0cf4-4496-bc25-90b9e58fa2c8'
 
+// 認証クッキーに依存するため常に動的レンダリング（ユーザーごとに内容が異なる）
+export const dynamic = 'force-dynamic'
+
 export default async function CalendarPage() {
   const authClient = await createClient()
   const {
@@ -31,12 +34,18 @@ export default async function CalendarPage() {
 
   const supabase = createAdminClient()
 
+  // 月送りはクライアント側で即時に行うため全期間のデータが必要だが、
+  // カレンダーに出せる日付を一つも持たない行（応募直後でまだ何も
+  // 確定していない等）は取得自体が無駄なので除外する。
   const { data: dbApps } = await supabase
     .from('applications')
     .select(
       'id, company_name, status, interview_date, event_date, test_date, es_deadline, gd_date'
     )
     .eq('user_id', user.id)
+    .or(
+      'interview_date.not.is.null,event_date.not.is.null,test_date.not.is.null,es_deadline.not.is.null,gd_date.not.is.null'
+    )
     .order('updated_at', { ascending: false })
 
   const applications = dbApps ?? []

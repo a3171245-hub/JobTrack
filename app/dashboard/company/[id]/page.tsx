@@ -25,6 +25,9 @@ const AVATAR_COLORS = [
   'bg-gradient-to-br from-rose-500 to-pink-500',
 ]
 
+// 認証クッキーに依存するため常に動的レンダリング（ユーザーごとに内容が異なる）
+export const dynamic = 'force-dynamic'
+
 export default async function CompanyDetailPage({
   params,
 }: {

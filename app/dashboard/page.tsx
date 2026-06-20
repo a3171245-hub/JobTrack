@@ -10,6 +10,9 @@ import type { User } from '@supabase/supabase-js'
 
 const DEV_USER_ID = 'f64e9d5e-0cf4-4496-bc25-90b9e58fa2c8'
 
+// 認証クッキーに依存するため常に動的レンダリング（ユーザーごとに内容が異なる）
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardPage() {
   const authClient = await createClient()
   const {
@@ -49,7 +52,7 @@ export default async function DashboardPage() {
         .maybeSingle(),
       supabase
         .from('email_logs')
-        .select('*')
+        .select('id, body_text, received_at')
         .eq('user_id', user.id)
         .eq('email_type', 'manual_update')
         .gte('received_at', todayStart)
@@ -129,7 +132,6 @@ export default async function DashboardPage() {
     <div className="min-h-screen bg-slate-50 dark:bg-gradient-to-br dark:from-indigo-950 dark:via-[#1e1b4b] dark:to-violet-900">
       <NavBar user={user} dedicatedEmail={dedicatedEmail} />
 
-      {/* DashboardProvider 以下は CSR のみ（DashboardShell 内で ssr:false）*/}
       <DashboardShell
         applications={applications}
         initialTodayUpdates={initialTodayUpdates}

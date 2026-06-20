@@ -1,6 +1,6 @@
 export default function DashboardLoading() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-slate-50 dark:bg-gradient-to-br dark:from-indigo-950 dark:via-[#1e1b4b] dark:to-violet-900">
       {/* nav skeleton */}
       <div className="border-b border-slate-100 dark:border-slate-800/80 bg-white/85 dark:bg-slate-950/85 backdrop-blur-md">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
@@ -16,9 +16,19 @@ export default function DashboardLoading() {
       </div>
 
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8">
-        <div className="skeleton h-24 rounded-2xl mb-8" />
+        {/* 専用アドレスカード */}
+        <div className="mb-6">
+          <div className="skeleton w-32 h-3 rounded mb-2" />
+          <div className="skeleton h-14 rounded-xl" />
+        </div>
 
-        <div className="flex items-center justify-between mb-5">
+        {/* 今日の更新 / 今後の予定 2カラム */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="skeleton h-40 rounded-2xl" />
+          <div className="skeleton h-40 rounded-2xl" />
+        </div>
+
+        <div className="flex items-center justify-between mb-5 mt-8">
           <div className="flex items-baseline gap-3">
             <div className="skeleton w-24 h-6 rounded-lg" />
             <div className="skeleton w-8 h-4 rounded" />

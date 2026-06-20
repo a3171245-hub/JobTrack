@@ -9,6 +9,9 @@ const DEV_USER_ID = 'f64e9d5e-0cf4-4496-bc25-90b9e58fa2c8'
 
 const MAIL_FETCH_LIMIT = 200
 
+// 認証クッキーに依存するため常に動的レンダリング（ユーザーごとに内容が異なる）
+export const dynamic = 'force-dynamic'
+
 export default async function MailPage({
   searchParams,
 }: {
@@ -39,7 +42,7 @@ export default async function MailPage({
   const [logsResult, appsResult] = await Promise.allSettled([
     supabase
       .from('email_logs')
-      .select('*')
+      .select('id, application_id, subject, body_text, sender, received_at, email_type')
       .eq('user_id', user.id)
       .neq('email_type', 'manual_update')
       .order('received_at', { ascending: false })
