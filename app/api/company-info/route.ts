@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import Groq from 'groq-sdk'
 import { createClient } from '@/lib/supabase/server'
 import { companyInfoSchema, parseBody } from '@/lib/validate'
 import { checkRateLimit } from '@/lib/rate-limit'
@@ -7,7 +7,7 @@ import { checkRateLimit } from '@/lib/rate-limit'
 export const maxDuration = 30
 
 export async function GET(req: NextRequest) {
-  // Rate limit: 20 requests per minute per IP (Gemini quota protection)
+  // Rate limit: 20 requests per minute per IP (Groq quota protection)
   if (!checkRateLimit(req, { id: 'company-info', max: 20, windowMs: 60_000 })) {
     return NextResponse.json({ error: 'Too Many Requests' }, { status: 429, headers: { 'Retry-After': '60' } })
   }
@@ -25,14 +25,9 @@ export async function GET(req: NextRequest) {
 
   const { name } = validation.data
 
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-1.5-flash',
-    generationConfig: { responseMimeType: 'application/json' },
-  })
+  const client = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
-  try {
-    const result = await model.generateContent(`「${name}」という企業について、就活生向けに以下のJSONで情報を教えてください。
+  const prompt = `「${name}」という企業について、就活生向けに以下のJSONで情報を教えてください。
 存在しない企業や不明な場合は推測で回答してください。
 
 {
@@ -41,9 +36,16 @@ export async function GET(req: NextRequest) {
   "jobs": "採用職種（例: ソフトウェアエンジニア、営業職など）"
 }
 
-JSONのみを返してください。`)
+必ずJSON形式のみで返答してください。`
 
-    const content = result.response.text()
+  try {
+    const completion = await client.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      response_format: { type: 'json_object' },
+      messages: [{ role: 'user', content: prompt }],
+    })
+
+    const content = completion.choices[0].message.content
     if (!content) throw new Error('Empty response')
 
     const parsed = JSON.parse(content) as {
