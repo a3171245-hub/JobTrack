@@ -127,7 +127,7 @@ function ProcessStatusList({
 }
 
 export default function CompanyTable() {
-  const { applications, plan, activeCount, removeApplication, toggleActive } = useDashboard()
+  const { applications, activeCount, removeApplication, toggleActive } = useDashboard()
   const [showRejected, setShowRejected] = useState(false)
   const [showInactive, setShowInactive] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -135,14 +135,14 @@ export default function CompanyTable() {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
 
-  // フリープランで非アクティブ企業を分離
+  // 非アクティブ企業を分離
   const activeApps = useMemo(
     () => applications.filter((a) => a.is_active !== false),
     [applications]
   )
   const inactiveApps = useMemo(
-    () => (plan === 'free' ? applications.filter((a) => a.is_active === false) : []),
-    [applications, plan]
+    () => applications.filter((a) => a.is_active === false),
+    [applications]
   )
 
   const suggestions = useMemo(() => {
@@ -183,7 +183,7 @@ export default function CompanyTable() {
       `「${name}」の追跡を解除しますか？\n\n` +
       '・選考ステータス・メモ・カレンダー予定が削除されます\n' +
       '・受信済みメールは保持されますが「未追跡」状態に戻ります\n' +
-      '・フリープランのアクティブ枠が1つ増えます'
+      '・アクティブ枠が1つ空きます'
     )) return
     removeApplication(id)
     await deleteApplication(id).catch(() => toast.error('追跡解除に失敗しました'))
@@ -221,24 +221,22 @@ export default function CompanyTable() {
 
   return (
     <div className="space-y-4">
-      {/* フリープラン AI解析枠インジケーター */}
-      {plan === 'free' && (
-        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-500">
-          <Pin className="w-3.5 h-3.5 text-indigo-400" />
-          <span>
-            AI解析対象:{' '}
-            <span className={cn('font-semibold', activeCount >= 5 ? 'text-amber-600 dark:text-amber-400' : 'text-indigo-600 dark:text-indigo-400')}>
-              {activeCount} / 5社
-            </span>
+      {/* AI解析枠インジケーター */}
+      <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-500">
+        <Pin className="w-3.5 h-3.5 text-indigo-400" />
+        <span>
+          AI解析対象:{' '}
+          <span className={cn('font-semibold', activeCount >= 5 ? 'text-amber-600 dark:text-amber-400' : 'text-indigo-600 dark:text-indigo-400')}>
+            {activeCount} / 5社
           </span>
-          <span
-            className="ml-0.5 text-slate-300 dark:text-slate-600 cursor-help"
-            title="この枠内の企業のみ、届いたメールをAIが自動解析してステータスを更新します。枠を超えた企業は「未追跡」として保存されます。"
-          >
-            ？
-          </span>
-        </div>
-      )}
+        </span>
+        <span
+          className="ml-0.5 text-slate-300 dark:text-slate-600 cursor-help"
+          title="現在5社まで無料でAI解析できます。枠を超えた企業は「未追跡」として保存され、空きができると自動で対象になります。"
+        >
+          ？
+        </span>
+      </div>
 
       {/* 検索・フィルターバー */}
       <div className="flex items-center gap-3 flex-wrap">
@@ -309,7 +307,7 @@ export default function CompanyTable() {
       <TableBody
         apps={mainApps}
         onDelete={handleDelete}
-        onToggleActive={plan === 'free' ? toggleActive : undefined}
+        onToggleActive={toggleActive}
         activeCount={activeCount}
         showAffiliate={filteringRejected}
       />
@@ -329,7 +327,7 @@ export default function CompanyTable() {
               <TableBody
                 apps={collapsedRejectedApps}
                 onDelete={handleDelete}
-                onToggleActive={plan === 'free' ? toggleActive : undefined}
+                onToggleActive={toggleActive}
                 activeCount={activeCount}
                 showAffiliate
               />
@@ -338,8 +336,8 @@ export default function CompanyTable() {
         </div>
       )}
 
-      {/* 非アクティブ企業（フリープランのみ） */}
-      {plan === 'free' && inactiveApps.length > 0 && (
+      {/* 非アクティブ企業 */}
+      {inactiveApps.length > 0 && (
         <div>
           <button
             onClick={() => setShowInactive((v) => !v)}

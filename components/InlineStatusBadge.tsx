@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge'
 import { STATUS_LABELS, STATUS_COLORS, KANBAN_COLUMNS } from '@/lib/constants'
 import type { ApplicationStatus } from '@/types/database'
 import { useDashboard } from '@/contexts/DashboardContext'
-import PremiumModal from '@/components/PremiumModal'
 import { Pencil } from 'lucide-react'
 
 interface InlineStatusBadgeProps {
@@ -22,7 +21,6 @@ export default function InlineStatusBadge({
   updatedBy = 'ai',
 }: InlineStatusBadgeProps) {
   const [editing, setEditing] = useState(false)
-  const [showPremium, setShowPremium] = useState(false)
   const { updateStatus } = useDashboard()
   const selectRef = useRef<HTMLSelectElement>(null)
 
@@ -39,62 +37,49 @@ export default function InlineStatusBadge({
 
   if (!editing) {
     return (
-      <>
-        <div className="flex items-center gap-1">
-          <Badge
-            variant="outline"
-            className={`text-xs cursor-pointer hover:opacity-80 transition-opacity ${STATUS_COLORS[status]}`}
-            onClick={(e) => {
-              e.stopPropagation()
-              setEditing(true)
-            }}
-            title="クリックして変更"
+      <div className="flex items-center gap-1">
+        <Badge
+          variant="outline"
+          className={`text-xs cursor-pointer hover:opacity-80 transition-opacity ${STATUS_COLORS[status]}`}
+          onClick={(e) => {
+            e.stopPropagation()
+            setEditing(true)
+          }}
+          title="クリックして変更"
+        >
+          {STATUS_LABELS[status]}
+        </Badge>
+        {updatedBy === 'manual' && (
+          <span
+            className="inline-flex items-center gap-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500"
+            title="手動で変更されました"
           >
-            {STATUS_LABELS[status]}
-          </Badge>
-          {updatedBy === 'manual' && (
-            <span
-              className="inline-flex items-center gap-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500"
-              title="手動で変更されました"
-            >
-              <Pencil className="w-2.5 h-2.5" />
-              手動
-            </span>
-          )}
-        </div>
-        {showPremium && <PremiumModal onClose={() => setShowPremium(false)} />}
-      </>
+            <Pencil className="w-2.5 h-2.5" />
+            手動
+          </span>
+        )}
+      </div>
     )
   }
 
   return (
-    <>
-      <select
-        ref={selectRef}
-        defaultValue={status}
-        onChange={(e) => {
-          const val = e.target.value
-          console.log('badge clicked', applicationId, val)
-          if (val === 'event') {
-            setEditing(false)
-            setShowPremium(true)
-            return
-          }
-          updateStatus(applicationId, val as ApplicationStatus)
-          setEditing(false)
-        }}
-        onBlur={() => setEditing(false)}
-        onClick={(e) => e.stopPropagation()}
-        className="h-7 w-32 text-xs border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 dark:focus:ring-indigo-500 cursor-pointer transition-colors"
-      >
-        {ALL_STATUSES.map((s) => (
-          <option key={s} value={s}>
-            {STATUS_LABELS[s]}
-            {s === 'event' ? ' ✦' : ''}
-          </option>
-        ))}
-      </select>
-      {showPremium && <PremiumModal onClose={() => setShowPremium(false)} />}
-    </>
+    <select
+      ref={selectRef}
+      defaultValue={status}
+      onChange={(e) => {
+        const val = e.target.value
+        updateStatus(applicationId, val as ApplicationStatus)
+        setEditing(false)
+      }}
+      onBlur={() => setEditing(false)}
+      onClick={(e) => e.stopPropagation()}
+      className="h-7 w-32 text-xs border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 dark:focus:ring-indigo-500 cursor-pointer transition-colors"
+    >
+      {ALL_STATUSES.map((s) => (
+        <option key={s} value={s}>
+          {STATUS_LABELS[s]}
+        </option>
+      ))}
+    </select>
   )
 }

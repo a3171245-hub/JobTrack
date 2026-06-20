@@ -30,7 +30,6 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import PremiumModal from '@/components/PremiumModal'
 
 interface CalendarApp {
   id: string
@@ -358,7 +357,6 @@ export default function CalendarView({ applications }: { applications: CalendarA
   const [showAddModal, setShowAddModal] = useState(false)
   const [detailEvent, setDetailEvent] = useState<DayEvent | null>(null)
   const [draggingEvent, setDraggingEvent] = useState<DayEvent | null>(null)
-  const [showPremiumModal, setShowPremiumModal] = useState(false)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
@@ -594,17 +592,10 @@ export default function CalendarView({ applications }: { applications: CalendarA
           {FILTER_OPTIONS.map(({ value, label }) => {
             const isActive = value === 'all' ? isAllActive : activeFilters.includes(value)
             const cfg = value !== 'all' ? EVENT_CONFIG[value as EventType] : null
-            const isPremium = value === 'event'
             return (
               <button
                 key={value}
-                onClick={() => {
-                  if (isPremium) {
-                    setShowPremiumModal(true)
-                    return
-                  }
-                  toggleFilter(value)
-                }}
+                onClick={() => toggleFilter(value)}
                 className={[
                   'h-9 px-3.5 rounded-xl text-sm font-medium border transition-all',
                   isActive
@@ -613,9 +604,6 @@ export default function CalendarView({ applications }: { applications: CalendarA
                 ].join(' ')}
               >
                 {label}
-                {isPremium && (
-                  <span className="ml-1.5 text-xs text-amber-600 font-medium">✦</span>
-                )}
               </button>
             )
           })}
@@ -866,9 +854,6 @@ export default function CalendarView({ applications }: { applications: CalendarA
           onClose={() => setDetailEvent(null)}
           onDelete={handleDeleteManualEvent}
         />
-      )}
-      {showPremiumModal && (
-        <PremiumModal onClose={() => setShowPremiumModal(false)} />
       )}
     </div>
   )

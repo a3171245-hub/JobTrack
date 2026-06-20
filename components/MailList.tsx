@@ -327,16 +327,12 @@ export default function MailList({
   companyMap,
   appDateMap = {},
   userId = '',
-  freeLimitHit = false,
-  plan = 'free',
   activeCount = 0,
 }: {
   logs: EmailLog[]
   companyMap: Record<string, string>
   appDateMap?: Record<string, { status?: string; interview_date: string | null; interview_date_candidates?: string[] | null; event_date: string | null }>
   userId?: string
-  freeLimitHit?: boolean
-  plan?: 'free' | 'premium'
   activeCount?: number
 }) {
   const router = useRouter()
@@ -368,9 +364,9 @@ export default function MailList({
 
   function handleTrack(e: React.MouseEvent, logId: string) {
     e.stopPropagation()
-    if (plan === 'free' && activeCount >= 5) {
-      toast.error('アクティブ枠が上限です', {
-        description: 'ダッシュボードで追跡中の企業を解除してから追加してください。',
+    if (activeCount >= 5) {
+      toast.error('無料でご利用いただける枠（5社）に達しています。', {
+        description: '追跡を解除して空きを作るか、しばらくお待ちください。',
       })
       return
     }
@@ -379,8 +375,8 @@ export default function MailList({
       try {
         const result = await trackCompany(logId)
         if ('limitReached' in result) {
-          toast.error('アクティブ枠が上限です（5/5）', {
-            description: 'ダッシュボードで他の企業の追跡を解除してください。',
+          toast.error('無料でご利用いただける枠（5社）に達しています。', {
+            description: '追跡を解除して空きを作るか、しばらくお待ちください。',
           })
           return
         }
@@ -505,12 +501,6 @@ export default function MailList({
           </p>
         )}
       </div>
-
-      {freeLimitHit && (
-        <div className="mb-3 px-4 py-2.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 rounded-xl text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-          フリープランでは最新20件まで表示されます。プレミアムプランで制限が解除されます。
-        </div>
-      )}
 
       {/* ── Mail list ───────────────────────────────────────── */}
       {filteredLogs.length === 0 ? (

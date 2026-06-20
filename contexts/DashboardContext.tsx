@@ -166,12 +166,14 @@ export function DashboardProvider({
       const siblingIds = applications.filter((a) => companyGroupKey(a) === targetKey).map((a) => a.id)
 
       // クライアント側でも上限チェック（楽観的更新前）— 自社（兄弟プロセス含む）を除いた件数で判定
-      if (newIsActive && plan === 'free') {
+      if (newIsActive) {
         const othersActiveCount = countActiveCompanies(
           applications.filter((a) => companyGroupKey(a) !== targetKey)
         )
         if (othersActiveCount >= FREE_ACTIVE_LIMIT) {
-          toast.error(`アクティブ枠の上限（${FREE_ACTIVE_LIMIT}社）に達しています。他の企業をピン留め解除してください。`)
+          toast.error(`無料でご利用いただける枠（${FREE_ACTIVE_LIMIT}社）に達しています。`, {
+            description: '追跡を解除して空きを作るか、しばらくお待ちください。',
+          })
           return
         }
       }
@@ -188,7 +190,9 @@ export function DashboardProvider({
         setApplications((prev) =>
           prev.map((a) => (siblingIds.includes(a.id) ? { ...a, is_active: !newIsActive } : a))
         )
-        toast.error(`アクティブ枠の上限（${FREE_ACTIVE_LIMIT}社）に達しています。`)
+        toast.error(`無料でご利用いただける枠（${FREE_ACTIVE_LIMIT}社）に達しています。`, {
+          description: '追跡を解除して空きを作るか、しばらくお待ちください。',
+        })
         return
       }
 
@@ -198,7 +202,7 @@ export function DashboardProvider({
           : `${target.company_name} のピン留めを解除しました`
       )
     },
-    [applications, plan]
+    [applications]
   )
 
   const addApplication = useCallback((app: Application) => {

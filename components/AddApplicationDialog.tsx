@@ -19,11 +19,7 @@ import type { Database } from '@/types/database'
 
 type Application = Database['public']['Tables']['applications']['Row']
 
-export default function AddApplicationDialog({
-  plan = 'free',
-}: {
-  plan?: 'free' | 'premium'
-}) {
+export default function AddApplicationDialog() {
   const [open, setOpen] = useState(false)
   const [company, setCompany] = useState('')
   const [notes, setNotes] = useState('')
@@ -89,7 +85,7 @@ export default function AddApplicationDialog({
 
       if (!result.isActive) {
         toast.success(`${company} を追加しました`, {
-          description: 'アクティブ枠（5社）が上限のため非アクティブで追加されました。ピン留め解除してスペースを作るとアクティブにできます。',
+          description: '無料でご利用いただける枠（5社）に達しているため、いったん非アクティブで追加しました。ピン留め解除すると空きができ、アクティブにできます。',
           duration: 6000,
         })
       } else {
@@ -183,11 +179,9 @@ export default function AddApplicationDialog({
                 </div>
               )}
 
-              {plan === 'free' && (
-                <p className="text-xs text-slate-400">
-                  フリープランではアクティブ管理は5社まで。超えた分は非アクティブで保存されます。
-                </p>
-              )}
+              <p className="text-xs text-slate-400">
+                現在5社までAI解析・アクティブ管理ができます。超えた分は非アクティブで保存されます。
+              </p>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={reset}>

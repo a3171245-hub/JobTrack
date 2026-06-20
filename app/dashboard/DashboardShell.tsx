@@ -56,18 +56,25 @@ function Inner({
   todayMails,
   dedicatedEmail,
   userEmail,
-  plan,
 }: {
   applications: Application[]
   todayMails: TodayMailItem[]
   dedicatedEmail?: string | null
   userEmail?: string | null
-  plan: 'free' | 'premium'
 }) {
   const [shareOpen, setShareOpen] = useState(false)
 
   return (
     <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 animate-fade-in min-h-screen">
+      {dedicatedEmail && (
+        <div className="mb-6">
+          <p className="text-xs font-semibold text-slate-500 dark:text-indigo-300/60 uppercase tracking-wider mb-2">
+            あなたの専用アドレス
+          </p>
+          <DedicatedEmailBanner email={dedicatedEmail} />
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <TodayUpdates todayMails={todayMails} />
         <UpcomingSchedule />
@@ -75,15 +82,6 @@ function Inner({
       <div className="mt-6">
         <UnconfirmedScheduleBanner />
       </div>
-
-      {dedicatedEmail && (
-        <div className="mt-6">
-          <p className="text-xs font-semibold text-slate-500 dark:text-indigo-300/60 uppercase tracking-wider mb-2">
-            あなたの専用アドレス
-          </p>
-          <DedicatedEmailBanner email={dedicatedEmail} />
-        </div>
-      )}
 
       <div className="flex items-center justify-between mb-5 mt-8">
         <div className="flex items-baseline gap-3">
@@ -102,25 +100,11 @@ function Inner({
             <Share2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">結果をシェア</span>
           </Button>
-          <AddApplicationDialog plan={plan} />
+          <AddApplicationDialog />
         </div>
       </div>
 
       <CompanyTable />
-
-      {plan === 'free' && (
-        <div className="mt-8 mb-4">
-          <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 text-center">
-            <p className="text-xs text-slate-400 dark:text-slate-500 mb-3">広告</p>
-            <div
-              className="h-24 bg-slate-100 dark:bg-slate-800/40 rounded-xl flex items-center justify-center"
-              data-ad-slot="dashboard-banner"
-            >
-              <span className="text-xs text-slate-400 dark:text-slate-600">広告スペース（AdSense）</span>
-            </div>
-          </div>
-        </div>
-      )}
 
       {shareOpen && (
         <ShareCardDialog
@@ -159,7 +143,6 @@ export default function DashboardShell({
         todayMails={todayMails}
         dedicatedEmail={dedicatedEmail}
         userEmail={userEmail}
-        plan={plan}
       />
     </DashboardProvider>
   )

@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
 import { AFFILIATE_URL } from '@/lib/constants'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { ArrowLeft, ExternalLink, CalendarClock, Sparkles, Mail } from 'lucide-react'
+import { ArrowLeft, ExternalLink, CalendarClock, Mail } from 'lucide-react'
 import type { TestResult } from '@/types/database'
 
 const AVATAR_COLORS = [
@@ -170,22 +170,9 @@ export default async function CompanyDetailPage({
           />
         )}
 
-        {/* 企業情報メモ（AI取得） */}
-        {application.notes && (
-          <section className="bg-gradient-to-r from-indigo-50 to-violet-50 ring-1 ring-indigo-100 rounded-2xl px-5 py-4 mb-6">
-            <p className="text-xs font-semibold text-indigo-600 mb-1.5 flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5" />
-              AIが取得した企業情報
-            </p>
-            <p className="text-sm text-slate-700 whitespace-pre-line leading-relaxed">
-              {application.notes}
-            </p>
-          </section>
-        )}
-
-        {/* 応募者専用マイページ */}
+        {/* マイページ */}
         <section className="bg-white rounded-xl ring-1 ring-slate-900/5 shadow-sm p-6 mb-6">
-          <h2 className="text-base font-semibold text-slate-800 mb-4">応募者専用マイページ</h2>
+          <h2 className="text-base font-semibold text-slate-800 mb-4">マイページ</h2>
           <CompanyUrlEditor
             applicationId={application.id}
             initialUrl={application.company_url ?? null}
