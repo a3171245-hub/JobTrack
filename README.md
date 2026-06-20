@@ -8,7 +8,7 @@
 - **Backend**: Next.js API Routes (Server Actions)
 - **Database**: Supabase (PostgreSQL + Auth)
 - **メール受信**: Mailgun Webhook
-- **AI解析**: OpenAI API (gpt-4o-mini)
+- **AI解析**:Groq 
 - **認証**: Supabase Auth (Googleログイン)
 - **デプロイ**: Vercel
 
