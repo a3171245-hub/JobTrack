@@ -28,16 +28,16 @@ const PW = 1080  // portrait width
 const PH = 1920  // portrait height
 
 // ── Aggregation ──────────────────────────────────────────────────
-const DOC_PASS   = new Set(['test', 'gd', 'interview_1', 'interview_2', 'final', 'offer'])
-const INTERVIEW  = new Set(['interview_1', 'interview_2', 'final', 'offer'])
-const OFFER_ONLY = new Set(['offer'])
+const DOC_PASS        = new Set(['test', 'gd', 'interview_1', 'interview_2', 'final', 'offer'])
+const AWAITING_RESULT = new Set(['interview_1', 'interview_2', 'final']) // 面接済みでまだ結果が出ていない
+const OFFER_ONLY      = new Set(['offer'])
 
 function computeStats(apps: Application[]) {
   return {
-    total:     apps.length,
-    docPass:   apps.filter((a) => DOC_PASS.has(a.status)).length,
-    interview: apps.filter((a) => INTERVIEW.has(a.status)).length,
-    offered:   apps.filter((a) => OFFER_ONLY.has(a.status)).length,
+    total:          apps.length,
+    docPass:        apps.filter((a) => DOC_PASS.has(a.status)).length,
+    awaitingResult: apps.filter((a) => AWAITING_RESULT.has(a.status)).length,
+    offered:        apps.filter((a) => OFFER_ONLY.has(a.status)).length,
   }
 }
 
@@ -82,18 +82,6 @@ function brandGradient(ctx: CanvasRenderingContext2D, w: number, h: number, them
   return g
 }
 
-function drawLogo(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number) {
-  ctx.beginPath()
-  ctx.arc(x, y, 11 * scale, 0, Math.PI * 2)
-  ctx.fillStyle = '#FFFFFF'
-  ctx.fill()
-  ctx.fillStyle = '#FFFFFF'
-  ctx.font = `700 ${24 * scale}px -apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif`
-  ctx.textAlign = 'left'
-  ctx.textBaseline = 'middle'
-  ctx.fillText('JobTrack', x + 22 * scale, y + 1)
-}
-
 // ── Sub stats (horizontal row, glassmorphism chips) ────────────────
 function drawSubStats(
   ctx: CanvasRenderingContext2D,
@@ -117,15 +105,16 @@ function drawSubStats(
     ctx.lineWidth = 1.5
     ctx.stroke()
 
-    ctx.fillStyle = '#FFFFFF'
-    ctx.font = `800 ${48 * scale}px ${F}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
-    ctx.fillText(String(s.value), x + cW / 2, y + cH * 0.56)
 
     ctx.fillStyle = 'rgba(255,255,255,0.55)'
     ctx.font = `500 ${20 * scale}px ${F}`
-    ctx.fillText(s.label, x + cW / 2, y + cH * 0.82)
+    ctx.fillText(s.label, x + cW / 2, y + cH * 0.4)
+
+    ctx.fillStyle = '#FFFFFF'
+    ctx.font = `800 ${48 * scale}px ${F}`
+    ctx.fillText(String(s.value), x + cW / 2, y + cH * 0.78)
   })
 }
 
@@ -134,37 +123,30 @@ function drawPortraitCard(canvas: HTMLCanvasElement, apps: Application[], userEm
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
-  const { total, docPass, interview, offered } = computeStats(apps)
+  const { total, docPass, awaitingResult, offered } = computeStats(apps)
   const F = `-apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif`
   const cx = PW / 2
 
   ctx.fillStyle = brandGradient(ctx, PW, PH, theme)
   ctx.fillRect(0, 0, PW, PH)
 
-  // Top: logo
-  drawLogo(ctx, 80, 150, 1.3)
-
-  // Hero: huge offer count, vertically centered
+  // Hero: huge offer count
   ctx.fillStyle = '#FFFFFF'
-  ctx.font = `900 380px ${F}`
+  ctx.font = `900 460px ${F}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'alphabetic'
-  ctx.fillText(String(offered), cx, 880)
+  ctx.fillText(String(offered), cx, 820)
 
-  ctx.font = `800 72px ${F}`
-  ctx.fillText('社内定', cx, 980)
-
-  ctx.fillStyle = 'rgba(255,255,255,0.55)'
-  ctx.font = `500 30px ${F}`
-  ctx.fillText(`全 ${total} 社にエントリー`, cx, 1040)
+  ctx.font = `700 48px ${F}`
+  ctx.fillText('社インターン参加確定', cx, 900)
 
   // Sub stats row
   drawSubStats(
     ctx, cx, 1280, PW - 160,
     [
-      { label: '総エントリー', value: total },
+      { label: 'エントリー', value: total },
       { label: '書類通過', value: docPass },
-      { label: '面接実施', value: interview },
+      { label: '結果待ち', value: awaitingResult },
     ],
     1,
     F
@@ -185,11 +167,6 @@ function drawPortraitCard(canvas: HTMLCanvasElement, apps: Application[], userEm
   ctx.font = `400 24px ${F}`
   ctx.textAlign = 'right'
   ctx.fillText(todayLabel(), PW - 80, 1720)
-
-  ctx.fillStyle = 'rgba(255,255,255,0.3)'
-  ctx.font = `400 20px ${F}`
-  ctx.textAlign = 'center'
-  ctx.fillText('job-track-tawny.vercel.app', cx, 1840)
 }
 
 // ── Landscape card (1200 × 630, moomoo-style) ──────────────────────
@@ -197,37 +174,30 @@ function drawLandscapeCard(canvas: HTMLCanvasElement, apps: Application[], userE
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
-  const { total, docPass, interview, offered } = computeStats(apps)
+  const { total, docPass, awaitingResult, offered } = computeStats(apps)
   const F = `-apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif`
   const cx = LW / 2
 
   ctx.fillStyle = brandGradient(ctx, LW, LH, theme)
   ctx.fillRect(0, 0, LW, LH)
 
-  // Top: logo
-  drawLogo(ctx, 60, 64, 1)
-
-  // Hero: huge offer count, centered
+  // Hero: huge offer count
   ctx.fillStyle = '#FFFFFF'
-  ctx.font = `900 168px ${F}`
+  ctx.font = `900 200px ${F}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'alphabetic'
-  ctx.fillText(String(offered), cx, 318)
+  ctx.fillText(String(offered), cx, 300)
 
-  ctx.font = `800 38px ${F}`
-  ctx.fillText('社内定', cx, 360)
-
-  ctx.fillStyle = 'rgba(255,255,255,0.55)'
-  ctx.font = `500 18px ${F}`
-  ctx.fillText(`全 ${total} 社にエントリー`, cx, 396)
+  ctx.font = `700 26px ${F}`
+  ctx.fillText('社インターン参加確定', cx, 335)
 
   // Sub stats row
   drawSubStats(
     ctx, cx, 432, LW - 160,
     [
-      { label: '総エントリー', value: total },
+      { label: 'エントリー', value: total },
       { label: '書類通過', value: docPass },
-      { label: '面接実施', value: interview },
+      { label: '結果待ち', value: awaitingResult },
     ],
     0.62,
     F
@@ -243,11 +213,6 @@ function drawLandscapeCard(canvas: HTMLCanvasElement, apps: Application[], userE
   ctx.fillStyle = 'rgba(255,255,255,0.4)'
   ctx.font = `400 15px ${F}`
   ctx.fillText(todayLabel(), 60 + ctx.measureText(username).width + 16, LH - 22)
-
-  ctx.fillStyle = 'rgba(255,255,255,0.3)'
-  ctx.font = `400 14px ${F}`
-  ctx.textAlign = 'right'
-  ctx.fillText('job-track-tawny.vercel.app', LW - 60, LH - 22)
 }
 
 // ── Component ─────────────────────────────────────────────────────
