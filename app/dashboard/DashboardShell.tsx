@@ -21,12 +21,12 @@ function Inner({
   applications,
   todayMails,
   dedicatedEmail,
-  userEmail,
+  displayName,
 }: {
   applications: Application[]
   todayMails: TodayMailItem[]
   dedicatedEmail?: string | null
-  userEmail?: string | null
+  displayName: string
 }) {
   const [shareOpen, setShareOpen] = useState(false)
 
@@ -75,7 +75,7 @@ function Inner({
       {shareOpen && (
         <ShareCardDialog
           applications={applications}
-          userEmail={userEmail}
+          displayName={displayName}
           onClose={() => setShareOpen(false)}
         />
       )}
@@ -88,14 +88,14 @@ export default function DashboardShell({
   initialTodayUpdates,
   todayMails = [],
   dedicatedEmail,
-  userEmail,
+  displayName,
   plan = 'free',
 }: {
   applications: Application[]
   initialTodayUpdates: UpdateRecord[]
   todayMails?: TodayMailItem[]
   dedicatedEmail?: string | null
-  userEmail?: string | null
+  displayName: string
   plan?: 'free' | 'premium'
 }) {
   return (
@@ -108,7 +108,7 @@ export default function DashboardShell({
         applications={applications}
         todayMails={todayMails}
         dedicatedEmail={dedicatedEmail}
-        userEmail={userEmail}
+        displayName={displayName}
       />
     </DashboardProvider>
   )

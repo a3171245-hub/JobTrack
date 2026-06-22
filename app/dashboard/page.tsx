@@ -47,7 +47,8 @@ export default async function DashboardPage() {
         .order('updated_at', { ascending: false }),
       supabase
         .from('users')
-        .select('dedicated_email')
+        // display_name 列がまだ無い環境でもクエリ全体を落とさないよう select('*') を使う
+        .select('*')
         .eq('id', user.id)
         .maybeSingle(),
       supabase
@@ -86,6 +87,9 @@ export default async function DashboardPage() {
 
   // `plan` 列は実テーブルに存在しないため、常に 'free' として扱う
   const plan: 'free' | 'premium' = 'free'
+
+  const displayName =
+    rawProfile?.display_name?.trim() || user.email?.split('@')[0] || 'ゲスト'
 
   const rawLogs =
     logsResult.status === 'fulfilled' && logsResult.value.data
@@ -137,7 +141,7 @@ export default async function DashboardPage() {
         initialTodayUpdates={initialTodayUpdates}
         todayMails={todayMails}
         dedicatedEmail={dedicatedEmail}
-        userEmail={user.email ?? null}
+        displayName={displayName}
         plan={plan}
       />
     </div>

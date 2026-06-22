@@ -34,9 +34,10 @@ export default async function SettingsPage({
   }
 
   const supabase = createAdminClient()
+  // display_name 列がまだ無い環境でもクエリ全体を落とさないよう select('*') を使う
   const { data: profile } = await supabase
     .from('users')
-    .select('dedicated_email')
+    .select('*')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -51,6 +52,8 @@ export default async function SettingsPage({
         </h1>
         <SettingsClient
           dedicatedEmail={profile?.dedicated_email ?? null}
+          displayName={profile?.display_name ?? null}
+          userEmail={user.email ?? null}
           successMessage={success}
           errorMessage={error}
         />

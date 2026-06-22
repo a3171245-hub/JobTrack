@@ -17,7 +17,7 @@ const THEME_LABELS: Record<ColorTheme, { label: string; swatch: string }> = {
 
 interface Props {
   applications: Application[]
-  userEmail?: string | null
+  displayName: string
   onClose: () => void
 }
 
@@ -90,17 +90,17 @@ function drawSubStats(
   scale: number,
   F: string
 ) {
-  const gap = 14 * scale
+  const gap = 16 * scale
   const cW = (totalW - gap * (stats.length - 1)) / stats.length
-  const cH = 150 * scale
+  const cH = 220 * scale
   const x0 = centerX - totalW / 2
 
   stats.forEach((s, i) => {
     const x = x0 + i * (cW + gap)
-    rr(ctx, x, y, cW, cH, 18 * scale)
+    rr(ctx, x, y, cW, cH, 20 * scale)
     ctx.fillStyle = 'rgba(255,255,255,0.08)'
     ctx.fill()
-    rr(ctx, x, y, cW, cH, 18 * scale)
+    rr(ctx, x, y, cW, cH, 20 * scale)
     ctx.strokeStyle = 'rgba(255,255,255,0.16)'
     ctx.lineWidth = 1.5
     ctx.stroke()
@@ -108,18 +108,18 @@ function drawSubStats(
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
 
-    ctx.fillStyle = 'rgba(255,255,255,0.55)'
-    ctx.font = `500 ${20 * scale}px ${F}`
-    ctx.fillText(s.label, x + cW / 2, y + cH * 0.4)
+    ctx.fillStyle = 'rgba(255,255,255,0.6)'
+    ctx.font = `600 ${26 * scale}px ${F}`
+    ctx.fillText(s.label, x + cW / 2, y + cH * 0.34)
 
     ctx.fillStyle = '#FFFFFF'
-    ctx.font = `800 ${48 * scale}px ${F}`
+    ctx.font = `800 ${72 * scale}px ${F}`
     ctx.fillText(String(s.value), x + cW / 2, y + cH * 0.78)
   })
 }
 
 // ── Portrait card (1080 × 1920, moomoo-style) ──────────────────────
-function drawPortraitCard(canvas: HTMLCanvasElement, apps: Application[], userEmail: string | null | undefined, theme: ColorTheme) {
+function drawPortraitCard(canvas: HTMLCanvasElement, apps: Application[], displayName: string, theme: ColorTheme) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
@@ -157,11 +157,10 @@ function drawPortraitCard(canvas: HTMLCanvasElement, apps: Application[], userEm
   ctx.lineWidth = 1.5
   ctx.beginPath(); ctx.moveTo(80, 1660); ctx.lineTo(PW - 80, 1660); ctx.stroke()
 
-  const username = userEmail?.split('@')[0] ?? 'ゲスト'
   ctx.fillStyle = 'rgba(255,255,255,0.75)'
   ctx.font = `600 28px ${F}`
   ctx.textAlign = 'left'
-  ctx.fillText(username, 80, 1720)
+  ctx.fillText(displayName, 80, 1720)
 
   ctx.fillStyle = 'rgba(255,255,255,0.4)'
   ctx.font = `400 24px ${F}`
@@ -170,7 +169,7 @@ function drawPortraitCard(canvas: HTMLCanvasElement, apps: Application[], userEm
 }
 
 // ── Landscape card (1200 × 630, moomoo-style) ──────────────────────
-function drawLandscapeCard(canvas: HTMLCanvasElement, apps: Application[], userEmail: string | null | undefined, theme: ColorTheme) {
+function drawLandscapeCard(canvas: HTMLCanvasElement, apps: Application[], displayName: string, theme: ColorTheme) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
@@ -204,19 +203,18 @@ function drawLandscapeCard(canvas: HTMLCanvasElement, apps: Application[], userE
   )
 
   // Bottom: username/date
-  const username = userEmail?.split('@')[0] ?? 'ゲスト'
   ctx.fillStyle = 'rgba(255,255,255,0.75)'
   ctx.font = `600 17px ${F}`
   ctx.textAlign = 'left'
-  ctx.fillText(username, 60, LH - 22)
+  ctx.fillText(displayName, 60, LH - 22)
 
   ctx.fillStyle = 'rgba(255,255,255,0.4)'
   ctx.font = `400 15px ${F}`
-  ctx.fillText(todayLabel(), 60 + ctx.measureText(username).width + 16, LH - 22)
+  ctx.fillText(todayLabel(), 60 + ctx.measureText(displayName).width + 16, LH - 22)
 }
 
 // ── Component ─────────────────────────────────────────────────────
-export default function ShareCardDialog({ applications, userEmail, onClose }: Props) {
+export default function ShareCardDialog({ applications, displayName, onClose }: Props) {
   const [cardFormat, setCardFormat] = useState<CardFormat>('portrait')
   const [colorTheme, setColorTheme] = useState<ColorTheme>('charcoal')
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -226,11 +224,11 @@ export default function ShareCardDialog({ applications, userEmail, onClose }: Pr
     const canvas = canvasRef.current
     if (!canvas) return
     if (cardFormat === 'portrait') {
-      drawPortraitCard(canvas, applications, userEmail, colorTheme)
+      drawPortraitCard(canvas, applications, displayName, colorTheme)
     } else {
-      drawLandscapeCard(canvas, applications, userEmail, colorTheme)
+      drawLandscapeCard(canvas, applications, displayName, colorTheme)
     }
-  }, [applications, userEmail, cardFormat, colorTheme])
+  }, [applications, displayName, cardFormat, colorTheme])
 
   const handleDownload = useCallback(() => {
     const canvas = canvasRef.current
