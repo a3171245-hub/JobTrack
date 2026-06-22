@@ -7,6 +7,13 @@ import type { Database } from '@/types/database'
 
 type Application = Database['public']['Tables']['applications']['Row']
 type CardFormat = 'landscape' | 'portrait'
+type ColorTheme = 'charcoal' | 'navy' | 'amber'
+
+const THEME_LABELS: Record<ColorTheme, { label: string; swatch: string }> = {
+  charcoal: { label: 'ダークグレー', swatch: 'linear-gradient(135deg, #4a4a4a, #1a1a1a)' },
+  navy: { label: 'ネイビー', swatch: 'linear-gradient(135deg, #1e3a5f, #050a14)' },
+  amber: { label: 'アンバー', swatch: 'linear-gradient(135deg, #f59e0b, #7c2d12)' },
+}
 
 interface Props {
   applications: Application[]
@@ -57,11 +64,21 @@ function rr(
   ctx.closePath()
 }
 
-function brandGradient(ctx: CanvasRenderingContext2D, w: number, h: number) {
+function brandGradient(ctx: CanvasRenderingContext2D, w: number, h: number, theme: ColorTheme) {
   const g = ctx.createLinearGradient(0, 0, w * 0.3, h)
-  g.addColorStop(0, '#7C3AED')    // violet-600
-  g.addColorStop(0.45, '#4C1D95') // violet-900
-  g.addColorStop(1, '#1E1B4B')    // indigo-950 (dark navy)
+  if (theme === 'navy') {
+    g.addColorStop(0, '#1E3A5F')    // deep navy
+    g.addColorStop(0.45, '#0A1428') // darker navy
+    g.addColorStop(1, '#000000')    // black
+  } else if (theme === 'amber') {
+    g.addColorStop(0, '#F59E0B')    // amber-500
+    g.addColorStop(0.45, '#C2410C') // orange-700
+    g.addColorStop(1, '#451A03')    // deep brown-black
+  } else {
+    g.addColorStop(0, '#4A4A4A')    // charcoal
+    g.addColorStop(0.45, '#222222') // near-black
+    g.addColorStop(1, '#000000')    // black
+  }
   return g
 }
 
@@ -113,7 +130,7 @@ function drawSubStats(
 }
 
 // ── Portrait card (1080 × 1920, moomoo-style) ──────────────────────
-function drawPortraitCard(canvas: HTMLCanvasElement, apps: Application[], userEmail?: string | null) {
+function drawPortraitCard(canvas: HTMLCanvasElement, apps: Application[], userEmail: string | null | undefined, theme: ColorTheme) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
@@ -121,7 +138,7 @@ function drawPortraitCard(canvas: HTMLCanvasElement, apps: Application[], userEm
   const F = `-apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif`
   const cx = PW / 2
 
-  ctx.fillStyle = brandGradient(ctx, PW, PH)
+  ctx.fillStyle = brandGradient(ctx, PW, PH, theme)
   ctx.fillRect(0, 0, PW, PH)
 
   // Top: logo
@@ -176,7 +193,7 @@ function drawPortraitCard(canvas: HTMLCanvasElement, apps: Application[], userEm
 }
 
 // ── Landscape card (1200 × 630, moomoo-style) ──────────────────────
-function drawLandscapeCard(canvas: HTMLCanvasElement, apps: Application[], userEmail?: string | null) {
+function drawLandscapeCard(canvas: HTMLCanvasElement, apps: Application[], userEmail: string | null | undefined, theme: ColorTheme) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
@@ -184,7 +201,7 @@ function drawLandscapeCard(canvas: HTMLCanvasElement, apps: Application[], userE
   const F = `-apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif`
   const cx = LW / 2
 
-  ctx.fillStyle = brandGradient(ctx, LW, LH)
+  ctx.fillStyle = brandGradient(ctx, LW, LH, theme)
   ctx.fillRect(0, 0, LW, LH)
 
   // Top: logo
@@ -236,18 +253,19 @@ function drawLandscapeCard(canvas: HTMLCanvasElement, apps: Application[], userE
 // ── Component ─────────────────────────────────────────────────────
 export default function ShareCardDialog({ applications, userEmail, onClose }: Props) {
   const [cardFormat, setCardFormat] = useState<CardFormat>('portrait')
+  const [colorTheme, setColorTheme] = useState<ColorTheme>('charcoal')
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  // フォーマット or データ変更時に再描画
+  // フォーマット・カラー・データ変更時に再描画
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     if (cardFormat === 'portrait') {
-      drawPortraitCard(canvas, applications, userEmail)
+      drawPortraitCard(canvas, applications, userEmail, colorTheme)
     } else {
-      drawLandscapeCard(canvas, applications, userEmail)
+      drawLandscapeCard(canvas, applications, userEmail, colorTheme)
     }
-  }, [applications, userEmail, cardFormat])
+  }, [applications, userEmail, cardFormat, colorTheme])
 
   const handleDownload = useCallback(() => {
     const canvas = canvasRef.current
@@ -313,6 +331,30 @@ export default function ShareCardDialog({ applications, userEmail, onClose }: Pr
             PC用
             <span className="ml-1.5 text-[10px] opacity-60">1200×630</span>
           </button>
+        </div>
+
+        {/* カラーテーマ切り替え */}
+        <div className="flex items-center gap-2 px-5 pt-3">
+          {(Object.keys(THEME_LABELS) as ColorTheme[]).map((key) => {
+            const active = colorTheme === key
+            return (
+              <button
+                key={key}
+                onClick={() => setColorTheme(key)}
+                className={`flex-1 h-9 rounded-xl text-sm font-medium border transition-all flex items-center justify-center gap-1.5 ${
+                  active
+                    ? 'border-violet-500 ring-1 ring-violet-500 text-slate-900 dark:text-white'
+                    : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-violet-300 dark:hover:border-violet-700'
+                }`}
+              >
+                <span
+                  className="w-3.5 h-3.5 rounded-full flex-shrink-0 ring-1 ring-black/10"
+                  style={{ background: THEME_LABELS[key].swatch }}
+                />
+                {THEME_LABELS[key].label}
+              </button>
+            )
+          })}
         </div>
 
         {/* Preview */}
