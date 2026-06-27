@@ -14,7 +14,7 @@ export default function CalendarLoading() {
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-24 sm:pb-8">
         <div className="skeleton w-40 h-8 mb-1.5 rounded" />
         <div className="skeleton w-72 h-4 mb-6 rounded" />
 

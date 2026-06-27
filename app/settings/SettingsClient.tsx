@@ -75,7 +75,7 @@ export default function SettingsClient({
               <Button
                 size="sm"
                 variant="outline"
-                className="flex-shrink-0 gap-1.5 h-7 text-xs"
+                className="flex-shrink-0 gap-1.5 h-10 sm:h-7 text-xs"
                 onClick={handleCopy}
                 disabled={!dedicatedEmail}
               >
@@ -116,13 +116,13 @@ export default function SettingsClient({
                 onChange={(e) => setNameInput(e.target.value)}
                 placeholder={emailPrefix}
                 maxLength={30}
-                className="max-w-xs"
+                className="max-w-xs h-10 sm:h-9"
               />
               <Button
                 size="sm"
                 onClick={handleSaveDisplayName}
                 disabled={saving || nameInput === (displayName ?? '')}
-                className="flex-shrink-0"
+                className="flex-shrink-0 h-10 sm:h-7"
               >
                 保存
               </Button>

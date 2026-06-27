@@ -94,7 +94,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="dark min-h-screen bg-gradient-to-br from-indigo-950 via-[#1e1b4b] to-violet-900">
+    <div className="min-h-screen bg-white dark:bg-gradient-to-br dark:from-indigo-950 dark:via-[#1e1b4b] dark:to-violet-900">
 
       {/* ── Header ─────────────────────────────────────────── */}
       <header className="border-b border-slate-200 dark:border-white/10 bg-white/90 dark:bg-white/5 backdrop-blur-md sticky top-0 z-50">

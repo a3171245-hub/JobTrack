@@ -597,7 +597,7 @@ export default function CalendarView({ applications }: { applications: CalendarA
                 key={value}
                 onClick={() => toggleFilter(value)}
                 className={[
-                  'h-9 px-3.5 rounded-xl text-sm font-medium border transition-all',
+                  'h-9 px-3.5 rounded-xl text-sm font-medium border transition-all flex-shrink-0 whitespace-nowrap',
                   isActive
                     ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-600/20'
                     : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-slate-700 hover:border-indigo-200 dark:hover:border-slate-600 hover:text-indigo-700 dark:hover:text-indigo-400',

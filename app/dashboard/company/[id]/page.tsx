@@ -89,7 +89,7 @@ export default async function CompanyDetailPage({
     <div className="min-h-screen bg-slate-50">
       <NavBar user={user} dedicatedEmail={profile?.dedicated_email ?? null} />
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 animate-fade-in">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-8 pb-24 sm:pb-8 animate-fade-in">
         <Link
           href="/dashboard"
           className={cn(

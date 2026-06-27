@@ -90,10 +90,10 @@ function InterviewDateCell({
     return (
       <Link
         href={`/mail?company=${applicationId}`}
-        className="inline-flex items-center gap-1.5 text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-950/50 hover:bg-violet-200 dark:hover:bg-violet-900/60 rounded-lg px-2.5 py-1.5 w-fit text-xs font-medium transition-colors"
+        className="inline-flex items-center gap-1.5 text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-950/50 hover:bg-violet-200 dark:hover:bg-violet-900/60 ring-1 ring-violet-300 dark:ring-violet-700/60 rounded-lg px-3 py-2 w-fit text-xs font-semibold transition-colors"
       >
         <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
-        候補を選ぶ
+        候補を選ぶ（{candidateCount}件）
       </Link>
     )
   }
@@ -661,7 +661,7 @@ function TableBody({
                 <div className="flex-1 min-w-0">
                   <Link
                     href={`/mail?company=${app.id}`}
-                    className="font-semibold text-slate-900 dark:text-slate-100 truncate text-[15px] mb-1.5 block hover:underline"
+                    className="font-bold text-slate-900 dark:text-slate-100 truncate text-base mb-1.5 block active:underline"
                   >
                     {app.company_name}
                   </Link>
@@ -698,13 +698,13 @@ function TableBody({
               </div>
 
               {/* アクションバー */}
-              <div className="px-3 pb-3 pt-1.5 flex items-center justify-between border-t border-slate-50 dark:border-slate-800/60">
+              <div className="px-2 pb-2 pt-1.5 flex items-center justify-between border-t border-slate-50 dark:border-slate-800/60">
                 <div className="flex items-center gap-0.5">
                   {onToggleActive && (
                     isActive ? (
                       <button
                         onClick={() => onToggleActive(app.id, false)}
-                        className="p-2.5 text-amber-500 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-xl transition-colors"
+                        className="min-w-11 min-h-11 flex items-center justify-center text-amber-500 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-xl transition-colors"
                         title="ピン留め解除（同企業の全プロセス）"
                       >
                         <PinOff className="w-4 h-4" />
@@ -713,7 +713,7 @@ function TableBody({
                       <button
                         onClick={() => onToggleActive(app.id, true)}
                         className={cn(
-                          'p-2.5 rounded-xl transition-colors',
+                          'min-w-11 min-h-11 flex items-center justify-center rounded-xl transition-colors',
                           activeCount >= 5
                             ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
                             : 'text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/30'
@@ -729,7 +729,7 @@ function TableBody({
                       href={app.company_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="p-2.5 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-xl transition-colors"
+                      className="min-w-11 min-h-11 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-xl transition-colors"
                       title="マイページを開く"
                     >
                       <Link2 className="w-4 h-4" />
@@ -740,7 +740,7 @@ function TableBody({
                       href={AFFILIATE_URL}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="p-2.5 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-xl transition-colors"
+                      className="min-w-11 min-h-11 flex items-center justify-center text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-xl transition-colors"
                       title="エージェントに相談"
                     >
                       <ExternalLink className="w-4 h-4" />
@@ -749,7 +749,7 @@ function TableBody({
                   {!isMulti && (
                     <button
                       onClick={() => onDelete(app.id, app.company_name)}
-                      className="p-2.5 text-slate-300 dark:text-slate-700 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl transition-colors"
+                      className="min-w-11 min-h-11 flex items-center justify-center text-slate-300 dark:text-slate-700 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl transition-colors"
                       aria-label="削除"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -762,7 +762,7 @@ function TableBody({
                       <Link
                         key={p.id}
                         href={`/dashboard/company/${p.id}`}
-                        className="flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 py-1 px-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors"
+                        className="flex items-center gap-1 text-xs font-semibold text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 py-1.5 px-2.5 rounded-lg active:bg-indigo-100 dark:active:bg-indigo-900/50 transition-colors"
                       >
                         {PROCESS_TYPE_LABELS[p.process_type ?? 'other']}詳細 <ChevronRight className="w-3 h-3" />
                       </Link>
@@ -771,7 +771,7 @@ function TableBody({
                 ) : (
                   <Link
                     href={`/dashboard/company/${app.id}`}
-                    className="flex items-center gap-1 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 py-2 px-3 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors"
+                    className="flex items-center gap-1 text-sm font-semibold text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 py-2.5 px-3.5 rounded-xl active:bg-indigo-100 dark:active:bg-indigo-900/50 transition-colors"
                   >
                     詳細 <ChevronRight className="w-3.5 h-3.5" />
                   </Link>

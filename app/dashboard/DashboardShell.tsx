@@ -31,7 +31,7 @@ function Inner({
   const [shareOpen, setShareOpen] = useState(false)
 
   return (
-    <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 animate-fade-in min-h-screen">
+    <main className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-8 pb-24 sm:pb-8 animate-fade-in min-h-screen">
       {dedicatedEmail && (
         <div className="mb-6">
           <p className="text-xs font-semibold text-slate-500 dark:text-indigo-300/60 uppercase tracking-wider mb-2">

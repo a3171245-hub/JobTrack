@@ -53,7 +53,7 @@ export default async function CalendarPage() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-gradient-to-br dark:from-indigo-950 dark:via-[#1e1b4b] dark:to-violet-900">
       <NavBar user={user} />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 animate-fade-in">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-24 sm:pb-8 animate-fade-in">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">カレンダー</h1>
           <p className="text-sm text-slate-500 dark:text-indigo-200/70 mt-1">

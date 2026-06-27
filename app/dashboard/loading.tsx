@@ -15,7 +15,7 @@ export default function DashboardLoading() {
         </div>
       </div>
 
-      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8">
+      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-8 pb-24 sm:pb-8">
         {/* 専用アドレスカード */}
         <div className="mb-6">
           <div className="skeleton w-32 h-3 rounded mb-2" />

@@ -144,10 +144,10 @@ function CalendarPrompt({
           )}
 
           {hasCandidates && (
-            <div className="flex gap-1.5 mt-2">
+            <div className="flex gap-1.5 mt-2.5">
               <button
                 onClick={() => setMode('candidates')}
-                className={`text-xs font-medium px-2.5 py-1 rounded-lg border transition-colors ${
+                className={`text-xs font-semibold px-3 py-2 rounded-lg border transition-colors ${
                   mode === 'candidates'
                     ? 'bg-indigo-600 text-white border-indigo-600'
                     : 'bg-white dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700/60'
@@ -157,7 +157,7 @@ function CalendarPrompt({
               </button>
               <button
                 onClick={() => setMode('manual')}
-                className={`text-xs font-medium px-2.5 py-1 rounded-lg border transition-colors ${
+                className={`text-xs font-semibold px-3 py-2 rounded-lg border transition-colors ${
                   mode === 'manual'
                     ? 'bg-indigo-600 text-white border-indigo-600'
                     : 'bg-white dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700/60'
@@ -169,22 +169,31 @@ function CalendarPrompt({
           )}
 
           {mode === 'candidates' ? (
-            <div className="mt-2 space-y-1.5">
-              {candidates.map((d, i) => (
-                <label key={d} className="flex items-center gap-2.5 cursor-pointer group">
-                  <input
-                    type="radio"
-                    name="interview-date"
-                    value={d}
-                    checked={selectedDate === d}
-                    onChange={() => setSelectedDate(d)}
-                    className="w-3.5 h-3.5 accent-indigo-600"
-                  />
-                  <span className={`text-sm transition-colors ${selectedDate === d ? 'text-indigo-800 dark:text-indigo-200 font-medium' : 'text-indigo-600 dark:text-indigo-400'}`}>
-                    候補{['A','B','C','D','E'][i] ?? i + 1}：{fmt(d)}
-                  </span>
-                </label>
-              ))}
+            <div className="mt-2.5 space-y-2">
+              {candidates.map((d, i) => {
+                const isSelected = selectedDate === d
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setSelectedDate(d)}
+                    className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl border text-left transition-colors ${
+                      isSelected
+                        ? 'bg-indigo-600 border-indigo-600 text-white'
+                        : 'bg-white dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-700/50 text-indigo-900 dark:text-indigo-100 hover:border-indigo-400 dark:hover:border-indigo-500'
+                    }`}
+                  >
+                    <span className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                      isSelected ? 'border-white' : 'border-indigo-300 dark:border-indigo-600'
+                    }`}>
+                      {isSelected && <span className="w-2.5 h-2.5 rounded-full bg-white" />}
+                    </span>
+                    <span className="text-sm font-medium">
+                      候補{['A','B','C','D','E'][i] ?? i + 1}：{fmt(d)}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           ) : (
             <div className="mt-2">
@@ -192,22 +201,22 @@ function CalendarPrompt({
                 type="datetime-local"
                 value={manualDateTime}
                 onChange={(e) => setManualDateTime(e.target.value)}
-                className="h-9 px-3 rounded-lg border border-indigo-300 dark:border-indigo-700/60 bg-white dark:bg-indigo-950/40 text-sm text-indigo-900 dark:text-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-700/40"
+                className="h-11 px-3 rounded-lg border border-indigo-300 dark:border-indigo-700/60 bg-white dark:bg-indigo-950/40 text-sm text-indigo-900 dark:text-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-700/40 w-full"
               />
             </div>
           )}
 
-          <div className="flex gap-2 mt-3">
+          <div className="flex gap-2 mt-3.5">
             <button
               onClick={handleAdd}
               disabled={status === 'loading' || (mode === 'manual' && !manualDateTime)}
-              className="text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400 text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-60"
+              className="text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400 text-white px-4 py-2.5 rounded-xl transition-colors disabled:opacity-60"
             >
               {status === 'loading' ? '追加中…' : 'カレンダーに追加'}
             </button>
             <button
               onClick={onDone}
-              className="text-xs font-medium text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-200 px-3 py-1.5 rounded-lg transition-colors"
+              className="text-sm font-medium text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-200 px-4 py-2.5 rounded-xl transition-colors"
             >
               スキップ
             </button>
@@ -541,17 +550,17 @@ export default function MailList({
                     : `bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200/70 dark:border-indigo-700/40 ${cfg.stripe} hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:shadow-lg hover:shadow-indigo-100/50`,
                 ].join(' ')}
               >
-                <button
-                  onClick={() => open(log)}
-                  className="w-full text-left px-4 py-3.5 flex items-start gap-3"
-                >
-                  <div className="flex-1 min-w-0 pr-16">
+                <div className="flex items-stretch">
+                  <button
+                    onClick={() => open(log)}
+                    className="flex-1 min-w-0 text-left px-4 py-3.5"
+                  >
                     {/* Row 1 */}
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${cfg.badge}`}>
                         {cfg.label}
                       </span>
-                      <span className={`text-sm truncate max-w-[180px] ${
+                      <span className={`text-sm truncate max-w-[140px] sm:max-w-[180px] ${
                         isRead
                           ? 'font-medium text-slate-500 dark:text-white/50'
                           : 'font-bold text-slate-900 dark:text-white'
@@ -589,34 +598,32 @@ export default function MailList({
                         {log.sender}
                       </p>
                     )}
-                  </div>
-                </button>
+                  </button>
 
-                {/* 追跡ボタン (untracked only) */}
-                {!isTracked && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <button
-                      onClick={(e) => handleTrack(e, log.id)}
-                      disabled={isThisTracking || isPending}
-                      className={[
-                        'flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-medium border transition-all',
-                        isThisTracking
-                          ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-400 border-indigo-200 dark:border-indigo-700 cursor-wait'
-                          : 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 border-indigo-200 dark:border-indigo-700/60 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:border-indigo-400',
-                      ].join(' ')}
-                      title="この企業を追跡する"
-                    >
-                      {isThisTracking ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <BookmarkPlus className="w-3.5 h-3.5" />
-                      )}
-                      <span className="hidden sm:inline">
-                        {isThisTracking ? '解析中…' : '追跡する'}
-                      </span>
-                    </button>
-                  </div>
-                )}
+                  {/* 追跡ボタン (untracked only) */}
+                  {!isTracked && (
+                    <div className="flex items-center pr-3 pl-1 flex-shrink-0">
+                      <button
+                        onClick={(e) => handleTrack(e, log.id)}
+                        disabled={isThisTracking || isPending}
+                        className={[
+                          'flex items-center gap-1.5 h-11 px-3.5 rounded-xl text-xs font-bold transition-all shadow-sm',
+                          isThisTracking
+                            ? 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-400 cursor-wait'
+                            : 'bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400 text-white',
+                        ].join(' ')}
+                        title="この企業を追跡する"
+                      >
+                        {isThisTracking ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <BookmarkPlus className="w-4 h-4" />
+                        )}
+                        <span>{isThisTracking ? '解析中…' : '追跡する'}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )
           })}
